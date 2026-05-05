@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Branch, Department, Enterprise, BiometricDevice, EmployeeBiometricMapping
+from .models import Branch, Department, Enterprise, BiometricDevice, EmployeeBiometricMapping, DeviceCommand
 from .models import Employee
 from userauth.models import UserProfile
 
@@ -228,3 +228,36 @@ class EmployeeCreateSerializer(serializers.Serializer):
         employee.save(update_fields=['employee_code'])
 
         return employee
+        return employee
+
+
+class DeviceCommandSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DeviceCommand
+        fields = ['id', 'device', 'user_id', 'name', 'status', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class CreateDeviceCommandSerializer(serializers.Serializer):
+    """Serializer for creating a new device command from frontend."""
+    device_serial_number = serializers.CharField(max_length=64, required=True)
+    user_id = serializers.CharField(max_length=64, required=True)
+    name = serializers.CharField(max_length=255, required=True)
+
+    def validate(self, attrs):
+        device_serial_number = attrs.get('device_serial_number')
+        device = BiometricDevice.objects.filter(serial_number=device_serial_number).first()
+        if not device:
+            raise serializers.ValidationError({'device_serial_number': 'Device not found.'})
+        attrs['device'] = device
+        return attrs
+
+    def create(self, validated_data):
+        device = validated_data.pop('device')
+        command = DeviceCommand.objects.create(
+            device=device,
+            user_id=validated_data['user_id'],
+            name=validated_data['name'],
+            status='pending',
+        )
+        return command

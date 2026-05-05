@@ -597,10 +597,10 @@ class ApiClient {
         body: JSON.stringify({ employee_id: employeeId, device_identifier: deviceIdentifier }),
       }),
 
-    syncToDevice: (employeeId: number, deviceId: number) =>
+    syncToDevice: (employeeId: number, deviceSerialNumber: string) =>
       this.request<any>('/enterprise/api/employees/sync-device/', {
         method: 'POST',
-        body: JSON.stringify({ employee_id: employeeId, device_id: deviceId }),
+        body: JSON.stringify({ employee_id: employeeId, device_serial_number: deviceSerialNumber }),
       }),
   };
 

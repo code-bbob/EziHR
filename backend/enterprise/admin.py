@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
 
-from .models import Branch, Department, Employee, Enterprise, BiometricDevice, EmployeeBiometricMapping
+from .models import Branch, Department, Employee, Enterprise, BiometricDevice, EmployeeBiometricMapping, DeviceCommand
 
 
 @admin.register(Enterprise)
@@ -82,3 +82,11 @@ class EmployeeBiometricMappingAdmin(admin.ModelAdmin):
 	search_fields = ('employee__name', 'employee__employee_code', 'device__serial_number', 'device_user_id')
 	list_filter = ('device__enterprise', 'device__branch')
 	fields = ('employee', 'device', 'device_user_id')
+
+@admin.register(DeviceCommand)
+class DeviceCommandAdmin(admin.ModelAdmin):
+	list_display = ('device', 'user_id', 'name', 'status', 'created_at')
+	search_fields = ('device__serial_number', 'user_id', 'name')
+	list_filter = ('status', 'device__enterprise', 'device__branch', 'created_at')
+	fields = ('device', 'user_id', 'name', 'status')
+	readonly_fields = ('created_at', 'updated_at')

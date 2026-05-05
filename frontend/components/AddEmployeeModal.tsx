@@ -119,7 +119,13 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
         throw new Error('Employee was created, but the server did not return an employee ID.');
       }
 
-      await apiClient.employees.syncToDevice(employeeId, Number(formData.device_id));
+      // Find the device serial number from the selected device
+      const selectedDevice = devices.find(d => String(d.id) === formData.device_id);
+      if (!selectedDevice) {
+        throw new Error('Selected device not found');
+      }
+
+      await apiClient.employees.syncToDevice(employeeId, selectedDevice.serial_number);
 
       setFormData({
         username: '',

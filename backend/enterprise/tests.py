@@ -143,3 +143,24 @@ class EmployeeCreateAndSyncAPITests(TestCase):
 		self.assertEqual(response.status_code, 201)
 		sync_mock.assert_called_once()
 		self.assertEqual(response.data['mapping']['device_user_id'], self.employee.employee_code)
+
+	def test_device_acknowledgement_marks_command_done(self):
+		from .models import DeviceCommand
+
+		command = DeviceCommand.objects.create(
+			device=self.device,
+			user_id=self.employee.employee_code,
+			name=self.employee.name,
+			status='pending',
+		)
+
+		response = self.client.post(
+			f'/iclock/devicecmd?SN={self.device.serial_number}',
+			'C:%d:success' % command.id,
+			content_type='text/plain',
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response.content.decode('utf-8'), 'OK')
+		command.refresh_from_db()
+		self.assertEqual(command.status, 'done')

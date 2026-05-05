@@ -74,6 +74,7 @@ class BiometricDevice(models.Model):
     )
     name = models.CharField(max_length=255, blank=True, default='')
     serial_number = models.CharField(max_length=64, unique=True)
+    location = models.CharField(max_length=255, blank=True, default='')
     device_ip = models.CharField(max_length=255, blank=True, default='')
     device_port = models.PositiveIntegerField(default=4370)
     device_model = models.CharField(max_length=255, blank=True, default='')
@@ -147,3 +148,33 @@ class Employee(models.Model):
 
     def __str__(self) -> str:
         return f'{self.name} ({self.employee_code})'
+
+
+class DeviceCommand(models.Model):
+    """Represents a command to be sent to a biometric device (e.g., add user)."""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('done', 'Done'),
+        ('failed', 'Failed'),
+    ]
+    
+    device = models.ForeignKey(
+        BiometricDevice,
+        on_delete=models.CASCADE,
+        related_name='commands',
+    )
+    user_id = models.CharField(max_length=64)
+    name = models.CharField(max_length=255)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['device', 'status']),
+            models.Index(fields=['status', '-created_at']),
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.device.serial_number} - User {self.user_id} ({self.status})'

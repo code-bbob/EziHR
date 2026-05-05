@@ -105,7 +105,12 @@ export default function SettingsPage() {
     }
     setSyncingEmployeeId(employeeId);
     try {
-      await apiClient.employees.syncToDevice(employeeId, Number(deviceId));
+      // Find the device's serial number from the selected device ID
+      const selectedDevice = devices.find(d => String(d.id) === String(deviceId));
+      if (!selectedDevice) {
+        throw new Error('Selected device not found');
+      }
+      await apiClient.employees.syncToDevice(employeeId, selectedDevice.serial_number);
       setDeviceSelections((prev) => {
         const updated = { ...prev };
         delete updated[employeeId];

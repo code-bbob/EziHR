@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from django.db import transaction, models
 
-from .models import Branch, Department, Enterprise, Employee, BiometricDevice, EmployeeBiometricMapping
+from .models import Branch, Department, Enterprise, Employee, BiometricDevice, EmployeeBiometricMapping, DeviceCommand
 from .serializers import (
 	BranchSerializer,
 	DepartmentSerializer,
@@ -15,12 +15,13 @@ from .serializers import (
 	BiometricEnrollmentSerializer,
 	EmployeeBiometricMappingSerializer,
 	BiometricDeviceSerializer,
+	DeviceCommandSerializer,
+	CreateDeviceCommandSerializer,
 )
 from datetime import datetime
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from userauth.serializers import UserSerializer
-from .device_sync import BiometricDeviceSyncError, sync_employee_to_device
 
 User = get_user_model()
 
@@ -391,7 +392,7 @@ class BiometricDeviceListAPIView(APIView):
 
 
 class EmployeeDeviceSyncAPIView(APIView):
-    """Sync an existing employee to a biometric device using the employee code as the device user ID."""
+    """Create a sync command for an employee to a device. Device polls and executes on next poll."""
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     def post(self, request):
@@ -400,10 +401,10 @@ class EmployeeDeviceSyncAPIView(APIView):
             return Response({'error': 'No enterprise is mapped to this user'}, status=HTTP_403_FORBIDDEN)
 
         employee_id = request.data.get('employee_id')
-        device_id = request.data.get('device_id')
-        if not employee_id or not device_id:
+        device_serial_number = request.data.get('device_serial_number')
+        if not employee_id or not device_serial_number:
             return Response(
-                {'error': 'employee_id and device_id are required'},
+                {'error': 'employee_id and device_serial_number are required'},
                 status=HTTP_400_BAD_REQUEST,
             )
 
@@ -411,7 +412,7 @@ class EmployeeDeviceSyncAPIView(APIView):
         if employee is None:
             return Response({'error': 'Employee not found'}, status=HTTP_404_NOT_FOUND)
 
-        device = BiometricDevice.objects.filter(id=device_id).first()
+        device = BiometricDevice.objects.filter(serial_number=device_serial_number).first()
         if device is None:
             return Response({'error': 'Biometric device not found'}, status=HTTP_404_NOT_FOUND)
 
@@ -421,15 +422,72 @@ class EmployeeDeviceSyncAPIView(APIView):
         if not device.is_active:
             return Response({'error': 'Selected biometric device is inactive'}, status=HTTP_400_BAD_REQUEST)
 
-        try:
-            mapping = sync_employee_to_device(employee, device)
-        except BiometricDeviceSyncError as exc:
-            return Response({'error': str(exc)}, status=HTTP_400_BAD_REQUEST)
+        # Create pending command instead of immediate sync
+        command = DeviceCommand.objects.create(
+            device=device,
+            user_id=employee.employee_code,
+            name=employee.name,
+            status='pending',
+        )
 
         return Response(
             {
-                'message': 'Employee synced to device successfully',
-                'mapping': EmployeeBiometricMappingSerializer(mapping, context={'request': request}).data,
+                'message': 'Sync command created. Device will execute on next poll.',
+                'command': DeviceCommandSerializer(command, context={'request': request}).data,
+            },
+            status=HTTP_201_CREATED,
+        )
+
+
+class CreateEmployeeAndSyncAPIView(APIView):
+    """Create an employee (with user account) and immediately create a device command for enrollment."""
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    @transaction.atomic
+    def post(self, request):
+        enterprise = _resolve_user_enterprise(request.user)
+        if enterprise is None:
+            return Response({'error': 'No enterprise is mapped to this user'}, status=HTTP_403_FORBIDDEN)
+
+        # Step 1: Create the employee + user
+        serializer = EmployeeCreateSerializer(data=request.data, context={'request': request})
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+        
+        employee = serializer.save()
+
+        # Step 2: Create device command for enrollment
+        device_serial_number = request.data.get('device_serial_number')
+        if not device_serial_number:
+            return Response(
+                {'error': 'device_serial_number is required for device sync'},
+                status=HTTP_400_BAD_REQUEST,
+            )
+
+        device = BiometricDevice.objects.filter(serial_number=device_serial_number).first()
+        if device is None:
+            return Response({'error': 'Biometric device not found'}, status=HTTP_404_NOT_FOUND)
+
+        if device.enterprise_id and device.enterprise_id != enterprise.id:
+            return Response({'error': 'Device does not belong to your enterprise'}, status=HTTP_403_FORBIDDEN)
+
+        if not device.is_active:
+            return Response({'error': 'Selected biometric device is inactive'}, status=HTTP_400_BAD_REQUEST)
+
+        # Create pending command for device to execute on next poll
+        command = DeviceCommand.objects.create(
+            device=device,
+            user_id=employee.employee_code,
+            name=employee.name,
+            status='pending',
+        )
+
+        return Response(
+            {
+                'message': 'Employee created successfully. Device sync command created and pending.',
+                'employee': EmployeeSerializer(employee, context={'request': request}).data,
+                'user': UserSerializer(employee.user, context={'request': request}).data,
+                'device_command': DeviceCommandSerializer(command, context={'request': request}).data,
             },
             status=HTTP_201_CREATED,
         )
@@ -494,3 +552,152 @@ class LinkUserToEmployeeAPIView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+# ============================================================================
+# ZKTeco ADMS Protocol Endpoints (Device-to-Server communication)
+# ============================================================================
+
+from django.http import HttpResponse
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def adms_cdata(request):
+    """
+    ADMS handshake endpoint: /iclock/cdata?SN=<serial>
+    - Devices call this on first connection or periodic check-in
+    - Returns device registration/update response
+    """
+    serial_number = request.GET.get('SN', '').strip()
+    if not serial_number:
+        return HttpResponse('ERROR', status=400)
+    
+    try:
+        device = BiometricDevice.objects.get(serial_number=serial_number)
+        # Update last_seen timestamp
+        device.last_seen_at = timezone.now()
+        device.save(update_fields=['last_seen_at'])
+    except BiometricDevice.DoesNotExist:
+        # Device doesn't exist, create it if it's a valid serial
+        device = BiometricDevice.objects.create(
+            serial_number=serial_number,
+            is_active=True,
+            last_seen_at=timezone.now(),
+        )
+    
+    # Return the ADMS protocol response
+    return HttpResponse(f'GET OPTION FROM: {serial_number}', content_type='text/plain')
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def adms_getrequest(request):
+    """
+    ADMS command polling endpoint: /iclock/getrequest?SN=<serial>
+    - Device polls for pending commands
+    - Returns pending user info in ADMS format or OK if none
+    """
+    serial_number = request.GET.get('SN', '').strip()
+    if not serial_number:
+        return HttpResponse('ERROR', status=400)
+    
+    try:
+        device = BiometricDevice.objects.get(serial_number=serial_number)
+    except BiometricDevice.DoesNotExist:
+        return HttpResponse('ERROR', status=400)
+    
+    # Get the first pending command for this device
+    command = DeviceCommand.objects.filter(
+        device=device,
+        status='pending'
+    ).first()
+    
+    if command:
+        # Format: C:<command_id>:DATA UPDATE USERINFO PIN=<user_id>\tName=<name>\tPri=0\tPasswd=\tCard=\t
+        response = f'C:{command.id}:DATA UPDATE USERINFO PIN={command.user_id}\tName={command.name}\tPri=0\tPasswd=\tCard=\t'
+        return HttpResponse(response, content_type='text/plain')
+    else:
+        return HttpResponse('OK', content_type='text/plain')
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def adms_devicecmd(request):
+    """
+    ADMS command acknowledgement endpoint: /iclock/devicecmd?SN=<serial>
+    - Device sends acknowledgement after processing a command
+    - Parse command ID from request body and mark as done
+    """
+    serial_number = request.GET.get('SN', '').strip()
+    if not serial_number:
+        return HttpResponse('ERROR', status=400)
+    
+    try:
+        device = BiometricDevice.objects.get(serial_number=serial_number)
+    except BiometricDevice.DoesNotExist:
+        return HttpResponse('ERROR', status=400)
+    
+    # Parse command ID from request body.
+    # Devices typically send: "C:<command_id>:success".
+    # Some firmware variants include extra whitespace or a slightly different payload,
+    # so we fall back to the oldest pending command for that device instead of
+    # rejecting the request with a 400 and causing endless retries.
+    body = request.body.decode('utf-8', errors='ignore').strip()
+    command_id = None
+
+    if body:
+        parts = body.split(':')
+        if len(parts) >= 2 and parts[0] == 'C':
+            try:
+                command_id = int(parts[1])
+            except (ValueError, IndexError):
+                command_id = None
+
+    command = None
+    if command_id is not None:
+        command = DeviceCommand.objects.filter(id=command_id, device=device).first()
+
+    if command is None:
+        command = DeviceCommand.objects.filter(device=device, status='pending').order_by('created_at', 'id').first()
+
+    if command is not None:
+        command.status = 'done'
+        command.save(update_fields=['status'])
+
+    return HttpResponse('OK', content_type='text/plain')
+
+
+# ============================================================================
+# DRF Endpoints (Frontend-to-Server communication)
+# ============================================================================
+
+class CreateDeviceCommandAPIView(APIView):
+    """Create a pending command for a device from the frontend."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = CreateDeviceCommandSerializer(
+            data=request.data,
+            context={'request': request}
+        )
+        if serializer.is_valid():
+            command = serializer.save()
+            return Response(
+                DeviceCommandSerializer(command).data,
+                status=HTTP_201_CREATED
+            )
+        return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+
+class ListDevicesAPIView(APIView):
+    """List all biometric devices with status and last_seen info."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        devices = BiometricDevice.objects.all().order_by('-last_seen_at')
+        serializer = BiometricDeviceSerializer(devices, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
