@@ -20,7 +20,7 @@ type StaffItem = {
   is_active?: boolean;
   branch?: { id: number; name: string } | null;
   department?: { id: number; name: string } | null;
-  user?: { is_superuser?: boolean; is_staff?: boolean } | null;
+  user?: { is_superuser?: boolean; is_admin?: boolean } | null;
   created_at?: string;
 };
 
@@ -201,7 +201,7 @@ export default function StaffPage() {
 
   const totalEmployees = filteredEmployees.length;
   const activeEmployees = filteredEmployees.filter((employee) => employee.is_active !== false).length;
-  const adminEmployees = filteredEmployees.filter((employee) => employee.user?.is_staff || employee.user?.is_superuser).length;
+  const adminEmployees = filteredEmployees.filter((employee) => employee.user?.is_admin).length;
   const capacityLimit = activeEnterprise?.max_alowed_employees || 0;
   const sourceEmployees = showAll && allEmployees ? allEmployees : employees;
   const capacityRatio = capacityLimit > 0 ? Math.min((sourceEmployees.length / capacityLimit) * 100, 100) : 0;
@@ -418,7 +418,7 @@ export default function StaffPage() {
                             <div>
                               <div className="font-semibold text-foreground">{employee.name}</div>
                               <div className="text-xs text-muted-foreground">
-                                {employee.user?.is_staff || employee.user?.is_superuser ? 'Administrator' : 'Staff member'}
+                                {employee.user?.is_admin || employee.user?.is_superuser ? 'Administrator' : 'Staff member'}
                               </div>
                             </div>
                           </div>

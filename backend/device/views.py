@@ -10,10 +10,11 @@ from rest_framework.authentication import SessionAuthentication
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.exceptions import UnsupportedMediaType
 from rest_framework.parsers import BaseParser, FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 from rest_framework.views import APIView
+from enterprise.permissions import IsAdminRole
 
 from attendance.services import (
     infer_next_event_code,
@@ -303,7 +304,7 @@ class IClockDeviceCmdView(APIView):
 
 
 class BiometricEnrollmentAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def post(self, request):
         enterprise = getattr(getattr(request.user, 'employee', None), 'enterprise', None)
@@ -343,7 +344,7 @@ class BiometricEnrollmentAPIView(APIView):
 
 
 class BiometricDeviceListAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request):
         enterprise = getattr(getattr(request.user, 'employee', None), 'enterprise', None)
@@ -359,7 +360,7 @@ class BiometricDeviceListAPIView(APIView):
 
 
 class EmployeeDeviceSyncAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def post(self, request):
         enterprise = getattr(getattr(request.user, 'employee', None), 'enterprise', None)
@@ -389,6 +390,8 @@ class EmployeeDeviceSyncAPIView(APIView):
             return Response({'error': 'Selected biometric device is inactive'}, status=HTTP_400_BAD_REQUEST)
 
         mapping = sync_employee_to_device(employee, device)
+        device_user_id = str(employee.employee_code).strip()
+
         command, created = DeviceCommand.objects.get_or_create(
             device=device,
             user_id=str(mapping.device_user_id),

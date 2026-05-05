@@ -67,7 +67,7 @@ Database Layer (SQLite)
 | POST | `/attendance/iclock/getrequest/` | Device heartbeat | None |
 | GET | `/attendance/iclock/cdata/` | Device data sync | None |
 | POST | `/attendance/iclock/cdata/` | Device data sync | None |
-| GET | `/attendance/api/dashboard/` | Admin dashboard | IsAuthenticated + IsAdminUser |
+| GET | `/attendance/api/dashboard/` | Admin dashboard | IsAuthenticated + IsAdminRole |
 
 ### ⏳ To Be Implemented
 - `/api/auth/login/` - User authentication

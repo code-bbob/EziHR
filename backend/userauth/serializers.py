@@ -14,7 +14,7 @@ class UserSerializer(serializers.ModelSerializer):
 
   class Meta:
     model = User
-    fields=['id', 'username', 'email', 'name', 'is_staff', 'employee_profile']
+    fields=['id', 'username', 'email', 'name', 'is_staff', 'is_admin', 'employee_profile']
     read_only_fields = ['id']
 
   def get_employee_profile(self, user):
@@ -143,6 +143,10 @@ class UserInfoSerializer(serializers.ModelSerializer):
   enterprise_name = serializers.CharField(source='employee.enterprise.name', read_only=True)
   branch_name = serializers.CharField(source='employee.branch.name', read_only=True)
   department_name = serializers.CharField(source='employee.department.name', read_only=True)
+  is_admin = serializers.BooleanField(source='employee.role', read_only=True)
   class Meta:
     model = User
-    fields = ['id', 'username', 'email', 'name', 'is_staff', 'enterprise', 'branch', 'department', 'enterprise_name', 'branch_name', 'department_name']
+    fields = ['id', 'username', 'email', 'name', 'is_admin', 'enterprise', 'branch', 'department', 'enterprise_name', 'branch_name', 'department_name']
+
+  def get_is_admin(self, obj):
+    return obj.employee.role == 'admin'

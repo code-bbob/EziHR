@@ -25,7 +25,7 @@ The EziHR backend has been converted from a Django template-based application to
 
 ### Dashboard
 - **GET** `/attendance/api/dashboard/`
-  - **Permission**: IsAuthenticated, IsAdminUser
+  - **Permission**: IsAuthenticated, IsAdminRole
   - **Response**: Dashboard data with attendance rows and date
   ```json
   {

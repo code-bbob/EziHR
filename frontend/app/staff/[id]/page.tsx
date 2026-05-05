@@ -34,7 +34,7 @@ interface EmployeeDetail {
   is_active: boolean;
   user?: {
     is_superuser?: boolean;
-    is_staff?: boolean;
+    is_admin?: boolean;
   };
 }
 
@@ -264,7 +264,7 @@ export default function StaffDetailPage() {
     );
   }
 
-  const isAdmin = employee.user?.is_superuser || employee.user?.is_staff;
+  const isAdmin = employee.user?.is_superuser || employee.user?.is_admin;
 
   return (
     <div className="flex-1 py-4 px-4 sm:px-6 lg:px-8 w-full space-y-4">

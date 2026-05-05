@@ -1,10 +1,9 @@
 from django.contrib.auth import get_user_model
-from django.db import transaction
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from enterprise.permissions import IsAdminRole
 from enterprise.models import Employee
 from userauth.serializers import UserSerializer
 
@@ -14,7 +13,7 @@ User = get_user_model()
 
 class CreateUserAPIView(APIView):
     """Admin endpoint to create a new user"""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def post(self, request):
         username = request.data.get('username')

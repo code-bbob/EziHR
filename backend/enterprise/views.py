@@ -1,9 +1,10 @@
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.status import HTTP_201_CREATED, HTTP_400_BAD_REQUEST, HTTP_403_FORBIDDEN, HTTP_404_NOT_FOUND
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from django.db import transaction, models
+from .permissions import IsAdminRole
 
 from .models import Branch, Department, Enterprise, Employee
 from .serializers import (
@@ -44,7 +45,7 @@ def _resolve_user_enterprise(user):
 
 
 class EnterpriseHierarchyAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request):
         enterprise = _resolve_user_enterprise(request.user)
@@ -57,7 +58,7 @@ class EnterpriseHierarchyAPIView(APIView):
 
 
 class DepartmentCreateAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def post(self, request):
         name = request.data.get('name')
@@ -77,7 +78,7 @@ class DepartmentCreateAPIView(APIView):
 
 class CreateEmployeeAPIView(APIView):
     """Admin endpoint to create a user and employee at the same time"""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     @transaction.atomic
     def post(self, request):
@@ -100,7 +101,7 @@ class CreateEmployeeAPIView(APIView):
 
 class ListEmployeesAPIView(APIView):
     """Admin endpoint to list all employees"""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request):
         enterprise = _resolve_user_enterprise(request.user)
@@ -126,7 +127,7 @@ class ListEmployeesAPIView(APIView):
 
 class EmployeeDetailAPIView(APIView):
     """Admin endpoint to view and update employee details"""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request, employee_id):
         enterprise = _resolve_user_enterprise(request.user)
@@ -181,6 +182,15 @@ class EmployeeDetailAPIView(APIView):
                 employee.user.save(update_fields=['name'])
 
         if employee_code is not None:
+            employee_code = str(employee_code).strip()
+            if not employee_code:
+                return Response({'error': 'employee_code cannot be empty'}, status=HTTP_400_BAD_REQUEST)
+            duplicate = Employee.objects.filter(
+                enterprise=enterprise,
+                employee_code=employee_code,
+            ).exclude(id=employee.id).exists()
+            if duplicate:
+                return Response({'error': 'Employee code already exists in this enterprise'}, status=HTTP_400_BAD_REQUEST)
             employee.employee_code = employee_code
 
         if branch_id is not None:
@@ -240,7 +250,7 @@ class EmployeeDetailAPIView(APIView):
 
 class DepartmentDetailAPIView(APIView):
     """Admin endpoint to view, update, or delete a department (including setting working hours)"""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request, department_id):
         enterprise = _resolve_user_enterprise(request.user)
@@ -325,7 +335,7 @@ class DepartmentDetailAPIView(APIView):
 
 class BiometricEnrollmentAPIView(APIView):
     """Admin endpoint to enroll an employee into a biometric device with a device-specific user ID."""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def post(self, request):
         enterprise = _resolve_user_enterprise(request.user)
@@ -378,7 +388,7 @@ class BiometricEnrollmentAPIView(APIView):
 
 class BiometricDeviceListAPIView(APIView):
     """Admin endpoint to list biometric devices for the enterprise."""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request):
         enterprise = _resolve_user_enterprise(request.user)
@@ -396,7 +406,7 @@ class BiometricDeviceListAPIView(APIView):
 
 class EmployeeDeviceSyncAPIView(APIView):
     """Create a sync command for an employee to a device. Device polls and executes on next poll."""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def post(self, request):
         enterprise = _resolve_user_enterprise(request.user)
@@ -444,7 +454,7 @@ class EmployeeDeviceSyncAPIView(APIView):
 
 class CreateEmployeeAndSyncAPIView(APIView):
     """Create an employee (with user account) and immediately create a device command for enrollment."""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     @transaction.atomic
     def post(self, request):
@@ -498,7 +508,7 @@ class CreateEmployeeAndSyncAPIView(APIView):
 
 class LinkUserToEmployeeAPIView(APIView):
     """Admin endpoint to link a user to an employee"""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def post(self, request):
         enterprise = _resolve_user_enterprise(request.user)

@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from .models import Branch, Department, Enterprise
@@ -200,35 +201,53 @@ class EmployeeCreateSerializer(serializers.Serializer):
         email = validated_data.pop('email', '')
         name = validated_data.pop('name')
 
-        user = User.objects.create_user(
-            username=username,
-            password=password,
-            email=email,
-            name=name,
-        )
+        with transaction.atomic():
+            if provided_employee_code:
+                exists = Employee.objects.filter(
+                    enterprise=enterprise,
+                    employee_code=provided_employee_code,
+                ).exists()
+                if exists:
+                    raise serializers.ValidationError(
+                        {'employee_code': 'Employee code already exists in this enterprise.'}
+                    )
+                next_employee_code = provided_employee_code
+            else:
+                existing_codes = (
+                    Employee.objects.select_for_update()
+                    .filter(enterprise=enterprise)
+                    .values_list('employee_code', flat=True)
+                )
+                max_numeric_code = 0
+                for code in existing_codes:
+                    if code and str(code).isdigit():
+                        max_numeric_code = max(max_numeric_code, int(code))
+                next_employee_code = str(max_numeric_code + 1)
 
-        UserProfile.objects.create(
-            user=user,
-            enterprise=enterprise,
-            branch=branch,
-        )
+            user = User.objects.create_user(
+                username=username,
+                password=password,
+                email=email,
+                name=name,
+            )
 
-        employee = Employee.objects.create(
-            user=user,
-            enterprise=enterprise,
-            branch=branch,
-            department=department,
-            name=name,
-            employee_code=provided_employee_code or f'TEMP-{uuid4().hex[:10].upper()}',
-            avatar=validated_data.pop('avatar', None),
-            is_active=validated_data.pop('is_active', True),
-        )
+            UserProfile.objects.create(
+                user=user,
+                enterprise=enterprise,
+                branch=branch,
+            )
 
-        if not provided_employee_code:
-            employee.employee_code = str(employee.id)
-        employee.save(update_fields=['employee_code'])
+            employee = Employee.objects.create(
+                user=user,
+                enterprise=enterprise,
+                branch=branch,
+                department=department,
+                name=name,
+                employee_code=next_employee_code or f'TEMP-{uuid4().hex[:10].upper()}',
+                avatar=validated_data.pop('avatar', None),
+                is_active=validated_data.pop('is_active', True),
+            )
 
-        return employee
         return employee
 
 

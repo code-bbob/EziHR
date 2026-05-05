@@ -28,7 +28,7 @@ interface UserData {
   email: string;
   first_name: string;
   last_name: string;
-  is_staff: boolean;
+  is_admin: boolean;
   employee_profile?: {
     avatar: string | null;
   } | null;
@@ -50,7 +50,7 @@ export function Navbar({ title = 'EziHR', subtitle, infoItems = [] }: NavbarProp
 
   const typedUser = user as UserData | null;
   const displayName = typedUser?.first_name || typedUser?.username || 'User';
-  const roleStr = typedUser?.is_staff ? 'Administrator' : 'Employee';
+  const roleStr = typedUser?.is_admin ? 'Administrator' : 'Employee';
   const avatarUrl = typedUser?.employee_profile?.avatar;
 
   return (

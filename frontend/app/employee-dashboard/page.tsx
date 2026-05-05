@@ -34,7 +34,7 @@ export default function EmployeeDashboard() {
     useEffect(() => {
         if (!authLoading && !isAuthenticated) {
             router.push('/login');
-        } else if (!authLoading && isAuthenticated && user?.is_staff) {
+        } else if (!authLoading && isAuthenticated && user?.is_admin) {
             // Admins should see the main dashboard
             router.push('/');
         }
@@ -52,7 +52,7 @@ export default function EmployeeDashboard() {
             }
         };
 
-        if (isAuthenticated && !user?.is_staff) {
+        if (isAuthenticated && !user?.is_admin) {
             fetchData();
         }
     }, [isAuthenticated, user]);

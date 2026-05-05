@@ -401,8 +401,8 @@ export default function HomePage() {
     return colors[type] || 'text-muted-foreground';
   };
 
-  if (!isAuthenticated || !user?.is_staff) {
-    if (isAuthenticated && !user?.is_staff) {
+  if (!isAuthenticated || !user?.is_admin) {
+    if (isAuthenticated && !user?.is_admin) {
       router.push('/employee-dashboard');
       return null;
     }

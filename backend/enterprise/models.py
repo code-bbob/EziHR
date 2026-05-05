@@ -58,7 +58,7 @@ class Department(models.Model):
 
 
 class Employee(models.Model):
-    employee_code = models.CharField(max_length=64, unique=True)
+    employee_code = models.CharField(max_length=64,blank=True)
     name = models.CharField(max_length=255)
     avatar = models.ImageField(upload_to='employee_avatars/', blank=True, null=True)
     enterprise = models.ForeignKey(
@@ -95,6 +95,12 @@ class Employee(models.Model):
 
     class Meta:
         ordering = ['name', 'employee_code']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['enterprise', 'employee_code'],
+                name='unique_employee_code_per_enterprise',
+            )
+        ]
 
     def __str__(self) -> str:
         return f'{self.name} ({self.employee_code})'

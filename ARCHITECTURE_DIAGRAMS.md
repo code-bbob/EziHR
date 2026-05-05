@@ -482,7 +482,7 @@ useEffect (auth check):
     └─ Call API (includes token in header)
         └─ Backend checks:
             ├─ IsAuthenticated
-            └─ IsAdminUser
+            └─ IsAdminRole
                 ├─ Both pass → Return data
                 └─ Either fails → Return 403 Forbidden
 ```

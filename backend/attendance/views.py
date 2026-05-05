@@ -10,11 +10,12 @@ from rest_framework.exceptions import UnsupportedMediaType
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticated, IsAdminUser, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.parsers import BaseParser, MultiPartParser, FormParser, JSONParser
 from django.http import StreamingHttpResponse
 import json
 from .ssm import subscribe, unsubscribe
+from enterprise.permissions import IsAdminRole
 
 from .services import (
     build_dashboard_rows,
@@ -138,7 +139,7 @@ class DashboardAPIView(APIView):
     Notes:
     - Requires authentication. Admins (is_staff) can see the full dashboard.
     """
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
     pagination_class = DefaultPagination
 
     def get(self, request: HttpRequest):
@@ -191,7 +192,7 @@ class DashboardAPIView(APIView):
 
 
 class AttendanceRowsAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
     pagination_class = DefaultPagination
 
     def get(self, request: HttpRequest):
@@ -239,7 +240,7 @@ class AttendanceRowsAPIView(APIView):
 
 
 class DashboardStatsAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request: HttpRequest):
         enterprise = _resolve_user_enterprise(request.user)
@@ -273,7 +274,7 @@ class DashboardStatsAPIView(APIView):
 
 class HierarchicalDashboardAPIView(APIView):
     """Enterprise-level hierarchical dashboard with drill-down by branch and department"""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
     pagination_class = DefaultPagination
 
     def get(self, request: HttpRequest):
@@ -426,7 +427,7 @@ class HierarchicalDashboardAPIView(APIView):
 
 class BranchDashboardAPIView(APIView):
     """Detailed view of a specific branch with department summaries"""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request: HttpRequest, branch_id: int):
         enterprise = _resolve_user_enterprise(request.user)
@@ -463,7 +464,7 @@ class BranchDashboardAPIView(APIView):
 
 class DepartmentDashboardAPIView(APIView):
     """Detailed view of a specific department with full employee attendance"""
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request: HttpRequest, department_id: int):
         enterprise = _resolve_user_enterprise(request.user)
@@ -773,7 +774,7 @@ class LateArrivalsAPIView(APIView):
     - branch_id: Filter by branch ID (optional)
     - department_id: Filter by department ID (optional)
     """
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
     pagination_class = DefaultPagination
 
     def get(self, request: HttpRequest):
@@ -845,7 +846,7 @@ class EarlyDeparturesAPIView(APIView):
     - branch_id: Filter by branch ID (optional)
     - department_id: Filter by department ID (optional)
     """
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
     pagination_class = DefaultPagination
 
     def get(self, request: HttpRequest):
@@ -957,7 +958,7 @@ class MonthlySummaryAPIView(APIView):
     - month: integer 1..12 (defaults to current month)
     - branch_id, department_id optional filters
     """
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
     pagination_class = DefaultPagination
 
     def get(self, request: HttpRequest):
@@ -1057,7 +1058,7 @@ class MonthlySummaryDetailedAPIView(APIView):
 
     Query params same as MonthlySummaryAPIView.
     """
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    permission_classes = [IsAuthenticated, IsAdminRole]
     pagination_class = DefaultPagination
 
     def get(self, request: HttpRequest):

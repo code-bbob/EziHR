@@ -64,6 +64,7 @@ class UserRegistrationView(APIView):
           'first_name': getattr(user, 'first_name', ''),
           'last_name': getattr(user, 'last_name', ''),
           'is_staff': user.is_staff,
+          'is_admin': user.is_admin,
         }
         return Response({'token':token, 'msg':'Registration Successful','userDetails': userDetails}, status=status.HTTP_201_CREATED)
       else:
@@ -88,7 +89,8 @@ class UserLoginView(APIView):
         'email': user.email,
         'name': user.name,
         'is_staff': user.is_staff,
-      }
+        'is_admin': user.is_admin,
+      }   
       return Response(
         {
           'access': token['access'],

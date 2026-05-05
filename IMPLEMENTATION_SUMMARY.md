@@ -189,7 +189,7 @@ Frontend: Display full detailed employee attendance table
 
 #### Routes (Already implemented)
 - ✅ `backend/attendance/urls.py` - All three dashboard endpoints registered
-- ✅ Proper permission classes (IsAuthenticated, IsAdminUser)
+- ✅ Proper permission classes (IsAuthenticated, IsAdminRole)
 
 ---
 

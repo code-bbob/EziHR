@@ -168,7 +168,7 @@ export function DashboardSidebar({
         id: e.id,
         name: e.name,
         employee_code: e.employee_code,
-        is_admin: !!(e.user && (e.user.is_superuser || e.user.is_staff)),
+        is_admin: e.user.is_admin,
       }));
       setLocalEmployees(mapped);
     } catch (err) {
@@ -206,7 +206,7 @@ export function DashboardSidebar({
             </div>
             {!collapsed && (
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold leading-tight text-foreground">EziHR - {enterpriseName}</p>
+                <p className="text-sm font-semibold leading-tight text-foreground">EziHR - <span className="text-primary">{enterpriseName}</span></p>
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {!selectedBranchName && !selectedDepartmentName && (
                     <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded font-bold uppercase tracking-wider">

@@ -78,7 +78,7 @@
 - `GET /api/auth/user/` - Get current user
 
 ### Dashboard
-- `GET /attendance/api/dashboard/` ✅ (Requires IsAuthenticated + IsAdminUser)
+- `GET /attendance/api/dashboard/` ✅ (Requires IsAuthenticated + IsAdminRole)
   - Returns: `{ attendance_rows: [...], attendance_date: string }`
 
 ### Device Integration
