@@ -1,9 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { Calendar } from 'bs-ad-calendar-react'
 import { useRightSidebar } from "@/hooks/useRightSidebar"
 import { SidebarContent } from "@/components/ui/sidebar"
+import { AdCalendar } from "@/components/ad-calendar"
+import { NepaliBSCalendar } from "@/components/nepali-bs-calendar"
 
 export function SidebarRight({ ...props }: React.ComponentProps<'div'>) {
   const { isOpen } = useRightSidebar()
@@ -19,27 +20,15 @@ export function SidebarRight({ ...props }: React.ComponentProps<'div'>) {
       }
       {...props}
     >
-      <div className="h-full border-l border-sidebar-border bg-gradient-to-b from-sidebar/80 via-sidebar/50 to-sidebar/80 backdrop-blur-2xl overflow-hidden">
-        <SidebarContent className="min-h-0 overflow-y-auto px-4 py-4 scrollbar-hide">
-          <div className="space-y-4">
+      <div className="flex h-full flex-col border-l border-sidebar-border bg-gradient-to-b from-sidebar/80 via-sidebar/50 to-sidebar/80 backdrop-blur-2xl overflow-hidden">
+        <SidebarContent className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pr-3">
+          <div className="space-y-3">
             <section className="space-y-2">
-              <div className="rounded-2xl border border-border/40 bg-background/40 p-3 shadow-sm backdrop-blur-md transition-all hover:border-primary/20 hover:shadow-md">
-                <Calendar
-                  calendarType="AD"
-                  showToday
-                  className="w-full"
-                />
-              </div>
+              <NepaliBSCalendar />
             </section>
 
             <section className="space-y-2">
-              <div className="rounded-2xl border border-border/40 bg-background/40 p-3 shadow-sm backdrop-blur-md transition-all hover:border-primary/20 hover:shadow-md">
-                <Calendar
-                  calendarType="BS"
-                  showToday
-                  className="w-full"
-                />
-              </div>
+              <AdCalendar />
             </section>
           </div>
         </SidebarContent>

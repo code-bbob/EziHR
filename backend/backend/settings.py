@@ -196,11 +196,14 @@ SIMPLE_JWT = {
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
     "https://ezihajir.dgtech.com.np",
     "https://ezi-hajir.vercel.app",
 ]
 
 ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
     "ezihajir.dgtech.com.np",
     '5.223.67.109',
     "https://ezi-hajir.vercel.app",

@@ -1,8 +1,10 @@
 "use client"
 
 import * as React from "react"
-import { Badge } from "@/components/ui/badge"
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { getTodayDate, getDaysInMonth, getFirstDayOfMonth } from "bs-ad-calendar-react"
+import type { DateInfo } from "bs-ad-calendar-react"
 
 const BS_MONTH_NAMES = [
   "बैशाख",
@@ -21,40 +23,16 @@ const BS_MONTH_NAMES = [
 
 const BS_WEEK_DAYS = ["आइत", "सोम", "मंगल", "बुध", "बिही", "शुक्र", "शनि"]
 const NEPALI_DIGITS = ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"]
-const DAY_MS = 24 * 60 * 60 * 1000
-const bsDateFormatter = new Intl.DateTimeFormat("en-NP-u-ca-bikram-sambat", {
-  year: "numeric",
-  month: "numeric",
-  day: "numeric",
-})
 
 function toNepaliDigits(value: number | string) {
   return String(value).replace(/\d/g, (digit) => NEPALI_DIGITS[Number(digit)])
 }
 
-function getBsParts(date: Date) {
-  const parts = bsDateFormatter.formatToParts(date)
-  const year = Number(parts.find((part) => part.type === "year")?.value ?? "0")
-  const month = Number(parts.find((part) => part.type === "month")?.value ?? "0")
-  const day = Number(parts.find((part) => part.type === "day")?.value ?? "0")
-  return { year, month, day }
-}
-
-function createBsMonthGrid(referenceDate: Date) {
-  const referenceBs = getBsParts(referenceDate)
-  const firstDayDate = new Date(referenceDate.getTime() - (referenceBs.day - 1) * DAY_MS)
-  const firstDayWeekday = firstDayDate.getDay()
-
-  let daysInMonth = 0
-  let probeDate = new Date(firstDayDate)
-  while (true) {
-    const bsParts = getBsParts(probeDate)
-    if (bsParts.year !== referenceBs.year || bsParts.month !== referenceBs.month) {
-      break
-    }
-    daysInMonth += 1
-    probeDate = new Date(probeDate.getTime() + DAY_MS)
-  }
+function createBsMonthGrid(today: DateInfo) {
+  const year = today.year
+  const month = today.month
+  const daysInMonth = getDaysInMonth("BS", year, month)
+  const firstDayWeekday = getFirstDayOfMonth("BS", year, month)
 
   const cells = [
     ...Array.from({ length: firstDayWeekday }, () => null),
@@ -62,17 +40,46 @@ function createBsMonthGrid(referenceDate: Date) {
   ]
 
   return {
-    bs: referenceBs,
+    bs: { year, month, day: today.day },
     cells,
   }
 }
 
 export function NepaliBSCalendar() {
-  const today = React.useMemo(() => getBsParts(new Date()), [])
+  const today = React.useMemo(() => getTodayDate("BS"), [])
+  const [displayMonth, setDisplayMonth] = React.useState(() => ({
+    year: today.year,
+    month: today.month,
+  }))
+
   const { bs, cells } = React.useMemo(
-    () => createBsMonthGrid(new Date()),
-    []
+    () => createBsMonthGrid({ ...today, year: displayMonth.year, month: displayMonth.month }),
+    [displayMonth.month, displayMonth.year, today]
   )
+
+  const goToPreviousMonth = React.useCallback(() => {
+    setDisplayMonth((current) => {
+      if (current.month === 1) {
+        return { year: current.year - 1, month: 12 }
+      }
+
+      return { year: current.year, month: current.month - 1 }
+    })
+  }, [])
+
+  const goToNextMonth = React.useCallback(() => {
+    setDisplayMonth((current) => {
+      if (current.month === 12) {
+        return { year: current.year + 1, month: 1 }
+      }
+
+      return { year: current.year, month: current.month + 1 }
+    })
+  }, [])
+
+  const goToCurrentMonth = React.useCallback(() => {
+    setDisplayMonth({ year: today.year, month: today.month })
+  }, [today.month, today.year])
 
   const holidays = [
     { month: bs.month, date: 1 },
@@ -82,18 +89,40 @@ export function NepaliBSCalendar() {
 
   return (
     <Card className="border-border/60 shadow-sm">
-      <CardHeader className="space-y-1 pb-3">
+      <CardHeader className="space-y-1 pb-2">
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="text-base">Nepali BS Calendar</CardTitle>
-          <Badge variant="outline" className="rounded-full">
-            BS {toNepaliDigits(bs.year)}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={goToPreviousMonth}
+              className="inline-flex size-8 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Previous BS month"
+            >
+              <ChevronLeftIcon className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={goToCurrentMonth}
+              className="rounded-full border border-border/60 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              BS {toNepaliDigits(bs.year)}
+            </button>
+            <button
+              type="button"
+              onClick={goToNextMonth}
+              className="inline-flex size-8 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Next BS month"
+            >
+              <ChevronRightIcon className="size-4" />
+            </button>
+          </div>
         </div>
         <CardDescription>
-          {BS_MONTH_NAMES[bs.month - 1]} {toNepaliDigits(bs.year)} · Today: {toNepaliDigits(today.day)}
+          {BS_MONTH_NAMES[bs.month]} {toNepaliDigits(bs.year)} · Today: {toNepaliDigits(today.day)}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4 p-3 pt-0">
+      <CardContent className="space-y-3 p-2.5 pt-0">
         <div className="rounded-lg border bg-background p-2">
           <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground mb-2">
             {BS_WEEK_DAYS.map((day) => (
