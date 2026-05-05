@@ -2,5 +2,6 @@ Django>=6.0,<7.0
 djangorestframework>=3.14.0
 django-cors-headers>=4.0.0
 djangorestframework-simplejwt>=5.5.0
+psycopg[binary]>=3.2,<4
 Pillow>=10.0.0
 pyzk>=0.9
