@@ -32,7 +32,7 @@ class DailyAttendanceSerializer(serializers.ModelSerializer):
         model = DailyAttendance
         fields = [
             'id', 'employee', 'employee_name', 'employee_code', 'attendance_date',
-            'first_check_in', 'last_check_out', 'first_break_out', 'last_break_in',
+            'first_check_in', 'last_check_out',
             'first_ot_in', 'last_ot_out', 'worked_minutes', 'worked_hours',
             'present', 'last_event_type', 'last_event_time', 'updated_at',
             'late_seconds', 'early_seconds', 'late_duration', 'early_duration',

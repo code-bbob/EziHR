@@ -19,6 +19,9 @@ from .ssm import subscribe, unsubscribe
 from .services import (
     build_dashboard_rows,
     build_dashboard_stats,
+    build_dashboard_rows_for_employees,
+    build_dashboard_stats_fast,
+    get_filtered_employees_queryset,
     infer_next_event_code,
     parse_device_timestamp,
     parse_event_code,
@@ -109,8 +112,13 @@ def _serialize_attendance_row(row):
         'present': bool(row.get('present', False)),
         'check_in': _dt_iso(row.get('check_in')),
         'check_out': _dt_iso(row.get('check_out')),
-        'break_out': _dt_iso(row.get('break_out')),
-        'break_in': _dt_iso(row.get('break_in')),
+        'break_sessions': [
+            {
+                'break_out': _dt_iso(session.get('break_out')),
+                'break_in': _dt_iso(session.get('break_in')),
+            }
+            for session in (row.get('break_sessions') or [])
+        ],
         'ot_in': _dt_iso(row.get('ot_in')),
         'ot_out': _dt_iso(row.get('ot_out')),
         'worked_minutes': int(row.get('worked_minutes') or 0),
@@ -151,19 +159,27 @@ class DashboardAPIView(APIView):
         if department_id and not Department.objects.filter(id=department_id, enterprise=enterprise).exists():
             return Response({'error': 'Department not found for your enterprise'}, status=404)
 
-        attendance_rows = build_dashboard_rows(
+        paginator = self.pagination_class()
+        employees = get_filtered_employees_queryset(
             branch_id=branch_id,
             department_id=department_id,
             enterprise_id=enterprise.id,
+        ).select_related('enterprise', 'branch', 'department', 'user')
+        page_employees = paginator.paginate_queryset(employees, request, view=self)
+        page_rows = build_dashboard_rows_for_employees(
+            page_employees,
+            attendance_date=timezone.localdate(),
         )
-
-        paginator = self.pagination_class()
-        page_rows = paginator.paginate_queryset(attendance_rows, request, view=self)
         serialized_rows = [_serialize_attendance_row(row) for row in page_rows]
         return Response({
             'attendance_rows': serialized_rows,
             'attendance_date': str(timezone.localdate()),
-            'stats': build_dashboard_stats(attendance_rows),
+            'stats': build_dashboard_stats_fast(
+                attendance_date=timezone.localdate(),
+                branch_id=branch_id,
+                department_id=department_id,
+                enterprise_id=enterprise.id,
+            ),
             'pagination': {
                 'count': paginator.page.paginator.count,
                 'next': paginator.get_next_link(),
@@ -196,13 +212,17 @@ class AttendanceRowsAPIView(APIView):
         if department_id and not Department.objects.filter(id=department_id, enterprise=enterprise).exists():
             return Response({'error': 'Department not found for your enterprise'}, status=404)
 
-        attendance_rows = build_dashboard_rows(
+        paginator = self.pagination_class()
+        employees = get_filtered_employees_queryset(
             branch_id=branch_id,
             department_id=department_id,
             enterprise_id=enterprise.id,
+        ).select_related('enterprise', 'branch', 'department', 'user')
+        page_employees = paginator.paginate_queryset(employees, request, view=self)
+        page_rows = build_dashboard_rows_for_employees(
+            page_employees,
+            attendance_date=timezone.localdate(),
         )
-        paginator = self.pagination_class()
-        page_rows = paginator.paginate_queryset(attendance_rows, request, view=self)
         serialized_rows = [_serialize_attendance_row(row) for row in page_rows]
 
         return Response({
@@ -239,14 +259,15 @@ class DashboardStatsAPIView(APIView):
         if department_id and not Department.objects.filter(id=department_id, enterprise=enterprise).exists():
             return Response({'error': 'Department not found for your enterprise'}, status=404)
 
-        attendance_rows = build_dashboard_rows(
+        stats = build_dashboard_stats_fast(
+            attendance_date=timezone.localdate(),
             branch_id=branch_id,
             department_id=department_id,
             enterprise_id=enterprise.id,
         )
         return Response({
             'attendance_date': str(timezone.localdate()),
-            'stats': build_dashboard_stats(attendance_rows),
+            'stats': stats,
         })
 
 
@@ -312,8 +333,8 @@ class HierarchicalDashboardAPIView(APIView):
                 'present': has_attendance,
                 'check_in': summary.first_check_in if summary else None,
                 'check_out': summary.last_check_out if summary else None,
-                'break_out': summary.first_break_out if summary else None,
-                'break_in': summary.last_break_in if summary else None,
+                'break_out': None,
+                'break_in': None,
                 'ot_in': summary.first_ot_in if summary else None,
                 'ot_out': summary.last_ot_out if summary else None,
                 'worked_minutes': summary.worked_minutes if summary else 0,

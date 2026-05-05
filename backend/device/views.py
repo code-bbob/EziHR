@@ -389,7 +389,24 @@ class EmployeeDeviceSyncAPIView(APIView):
             return Response({'error': 'Selected biometric device is inactive'}, status=HTTP_400_BAD_REQUEST)
 
         mapping = sync_employee_to_device(employee, device)
-        return Response({'message': 'Sync command created. Device will execute on next poll.', 'mapping': EmployeeBiometricMappingSerializer(mapping, context={'request': request}).data}, status=HTTP_201_CREATED)
+        command, created = DeviceCommand.objects.get_or_create(
+            device=device,
+            user_id=str(mapping.device_user_id),
+            status='pending',
+            defaults={'name': employee.name},
+        )
+        if not created and command.name != employee.name:
+            command.name = employee.name
+            command.save(update_fields=['name', 'updated_at'])
+
+        return Response(
+            {
+                'message': 'Sync command created. Device will execute on next poll.',
+                'mapping': EmployeeBiometricMappingSerializer(mapping, context={'request': request}).data,
+                'command': DeviceCommandSerializer(command).data,
+            },
+            status=HTTP_201_CREATED,
+        )
 
 
 class CreateDeviceCommandAPIView(APIView):

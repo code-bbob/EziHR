@@ -20,8 +20,6 @@ class DailyAttendanceAdmin(admin.ModelAdmin):
         'first_check_in',
         'last_check_out',
         'worked_minutes',
-        'first_break_out',
-        'last_break_in',
         'first_ot_in',
         'last_ot_out',
     )

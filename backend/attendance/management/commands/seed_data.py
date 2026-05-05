@@ -446,8 +446,6 @@ class Command(BaseCommand):
             attendance_date=attendance_date,
             first_check_in=check_in_time,
             last_check_out=check_out_time,
-            first_break_out=break_out_time,
-            last_break_in=break_in_time,
             first_ot_in=ot_in_time,
             last_ot_out=ot_out_time,
             worked_minutes=worked_minutes,

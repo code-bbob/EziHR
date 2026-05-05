@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from django.db import transaction
+from django.db.models import Q, Sum
 from django.utils import timezone
 
 from enterprise.models import Employee
@@ -180,6 +181,28 @@ def _event_field_values(events, event_type: int) -> list[datetime]:
     return [event.event_time for event in events if event.event_type == event_type]
 
 
+def _build_break_sessions(events) -> list[dict]:
+    sessions: list[dict] = []
+    active_break_start: datetime | None = None
+
+    for event in events:
+        if event.event_type == AttendanceEvent.BREAK_OUT:
+            if active_break_start is not None:
+                sessions.append({'break_out': active_break_start, 'break_in': None})
+            active_break_start = event.event_time
+        elif event.event_type == AttendanceEvent.BREAK_IN:
+            if active_break_start is not None:
+                sessions.append({'break_out': active_break_start, 'break_in': event.event_time})
+                active_break_start = None
+            else:
+                sessions.append({'break_out': None, 'break_in': event.event_time})
+
+    if active_break_start is not None:
+        sessions.append({'break_out': active_break_start, 'break_in': None})
+
+    return sessions
+
+
 def _get_department_schedule(employee: Employee):
     from datetime import time as _time
 
@@ -247,15 +270,11 @@ def rebuild_daily_attendance_summary(employee: Employee, attendance_date) -> Dai
 
     first_check_ins = _event_field_values(events, AttendanceEvent.CHECK_IN)
     check_outs = _event_field_values(events, AttendanceEvent.CHECK_OUT)
-    break_outs = _event_field_values(events, AttendanceEvent.BREAK_OUT)
-    break_ins = _event_field_values(events, AttendanceEvent.BREAK_IN)
     ot_ins = _event_field_values(events, AttendanceEvent.OT_IN)
     ot_outs = _event_field_values(events, AttendanceEvent.OT_OUT)
 
     summary.first_check_in = min(first_check_ins) if first_check_ins else None
     summary.last_check_out = max(check_outs) if check_outs else None
-    summary.first_break_out = min(break_outs) if break_outs else None
-    summary.last_break_in = max(break_ins) if break_ins else None
     summary.first_ot_in = min(ot_ins) if ot_ins else None
     summary.last_ot_out = max(ot_outs) if ot_outs else None
     summary.present = bool(events)
@@ -293,6 +312,7 @@ def record_device_event(
     try:
         # Include summary fields so clients can update authoritative values
         publish_event({
+            'event_id': event.id,
             'employee_id': employee.id,
             'employee_name': employee.name,
             'event_type': int(event_type),
@@ -319,17 +339,27 @@ def build_dashboard_rows(attendance_date=None, branch_id=None, department_id=Non
     if department_id:
         employees = employees.filter(department_id=department_id)
     employees = employees.select_related('enterprise', 'branch', 'department', 'user').order_by('name', 'employee_code')
+    employee_ids = list(employees.values_list('id', flat=True))
+
     summaries = {
         summary.employee_id: summary
         for summary in DailyAttendance.objects.filter(
             attendance_date=attendance_date,
-            employee_id__in=employees.values('id'),
+            employee_id__in=employee_ids,
         ).select_related('employee', 'employee__department')
     }
+    events_by_employee: dict[int, list[AttendanceEvent]] = {}
+    for event in AttendanceEvent.objects.filter(
+        employee_id__in=employee_ids,
+        event_time__date=attendance_date,
+    ).order_by('event_time', 'id'):
+        events_by_employee.setdefault(event.employee_id, []).append(event)
 
     rows = []
     for employee in employees:
         summary = summaries.get(employee.id)
+        employee_events = events_by_employee.get(employee.id, [])
+        break_sessions = _build_break_sessions(employee_events)
         has_attendance = bool(
             summary
             and (
@@ -344,8 +374,73 @@ def build_dashboard_rows(attendance_date=None, branch_id=None, department_id=Non
                 'present': has_attendance,
                 'check_in': summary.first_check_in if summary else None,
                 'check_out': summary.last_check_out if summary else None,
-                'break_out': summary.first_break_out if summary else None,
-                'break_in': summary.last_break_in if summary else None,
+                'break_sessions': break_sessions,
+                'break_out': None,
+                'break_in': None,
+                'ot_in': summary.first_ot_in if summary else None,
+                'ot_out': summary.last_ot_out if summary else None,
+                'worked_minutes': summary.worked_minutes if summary else 0,
+                'worked_duration': summary.worked_duration if summary else timedelta(),
+                'summary': summary,
+            }
+        )
+    return rows
+
+
+def get_filtered_employees_queryset(branch_id=None, department_id=None, enterprise_id=None):
+    employees = Employee.objects.filter(is_active=True)
+    if enterprise_id:
+        employees = employees.filter(enterprise_id=enterprise_id)
+    if branch_id:
+        employees = employees.filter(branch_id=branch_id)
+    if department_id:
+        employees = employees.filter(department_id=department_id)
+    return employees.order_by('name', 'employee_code')
+
+
+def build_dashboard_rows_for_employees(employees, attendance_date=None):
+    attendance_date = attendance_date or timezone.localdate()
+    employees = list(employees)
+    employee_ids = [employee.id for employee in employees]
+    if not employee_ids:
+        return []
+
+    summaries = {
+        summary.employee_id: summary
+        for summary in DailyAttendance.objects.filter(
+            attendance_date=attendance_date,
+            employee_id__in=employee_ids,
+        )
+    }
+    events_by_employee: dict[int, list[AttendanceEvent]] = {}
+    for event in AttendanceEvent.objects.filter(
+        employee_id__in=employee_ids,
+        event_time__date=attendance_date,
+    ).order_by('event_time', 'id'):
+        events_by_employee.setdefault(event.employee_id, []).append(event)
+
+    rows = []
+    for employee in employees:
+        summary = summaries.get(employee.id)
+        employee_events = events_by_employee.get(employee.id, [])
+        break_sessions = _build_break_sessions(employee_events)
+        has_attendance = bool(
+            summary
+            and (
+                summary.first_check_in is not None
+                or summary.last_check_out is not None
+                or summary.last_event_time is not None
+            )
+        )
+        rows.append(
+            {
+                'employee': employee,
+                'present': has_attendance,
+                'check_in': summary.first_check_in if summary else None,
+                'check_out': summary.last_check_out if summary else None,
+                'break_sessions': break_sessions,
+                'break_out': None,
+                'break_in': None,
                 'ot_in': summary.first_ot_in if summary else None,
                 'ot_out': summary.last_ot_out if summary else None,
                 'worked_minutes': summary.worked_minutes if summary else 0,
@@ -390,6 +485,69 @@ def build_dashboard_stats(attendance_rows: list[dict]) -> dict:
         'average_worked_hours': round(avg_worked_minutes / 60, 2),
         'highest_working_time': _employee_stat_payload(highest_row) if highest_row else None,
         'lowest_working_time': _employee_stat_payload(lowest_row) if lowest_row else None,
+    }
+
+
+def build_dashboard_stats_fast(attendance_date=None, branch_id=None, department_id=None, enterprise_id=None) -> dict:
+    attendance_date = attendance_date or timezone.localdate()
+    employees = get_filtered_employees_queryset(
+        branch_id=branch_id,
+        department_id=department_id,
+        enterprise_id=enterprise_id,
+    )
+    total_employees = employees.count()
+    if total_employees == 0:
+        return {
+            'total_employees': 0,
+            'present_today': 0,
+            'absent_today': 0,
+            'average_worked_minutes': 0,
+            'average_worked_hours': 0.0,
+            'highest_working_time': None,
+            'lowest_working_time': None,
+        }
+
+    summaries = DailyAttendance.objects.filter(
+        attendance_date=attendance_date,
+        employee_id__in=employees.values('id'),
+    )
+    present_filter = (
+        Q(first_check_in__isnull=False)
+        | Q(last_check_out__isnull=False)
+        | Q(last_event_time__isnull=False)
+    )
+    present_summaries = summaries.filter(present_filter)
+    present_today = present_summaries.count()
+    absent_today = max(total_employees - present_today, 0)
+
+    total_worked_minutes = int(summaries.aggregate(total=Sum('worked_minutes')).get('total') or 0)
+    avg_worked_minutes = int(round(total_worked_minutes / total_employees)) if total_employees else 0
+
+    highest_summary = present_summaries.select_related('employee').order_by('-worked_minutes', 'employee_id').first()
+    lowest_summary = present_summaries.select_related('employee').order_by('worked_minutes', 'employee_id').first()
+
+    def _summary_stat_payload(summary):
+        if not summary or not summary.employee:
+            return None
+        worked_minutes = int(summary.worked_minutes or 0)
+        return {
+            'employee': {
+                'id': summary.employee.id,
+                'employee_code': summary.employee.employee_code,
+                'name': summary.employee.name,
+            },
+            'worked_minutes': worked_minutes,
+            'worked_hours': round(worked_minutes / 60, 2),
+        }
+
+    return {
+        'total_employees': total_employees,
+        'present_today': present_today,
+        'absent_today': absent_today,
+        'average_worked_minutes': avg_worked_minutes,
+        'average_worked_hours': round(avg_worked_minutes / 60, 2),
+        'highest_working_time': _summary_stat_payload(highest_summary),
+        'lowest_working_time': _summary_stat_payload(lowest_summary),
     }
 
 

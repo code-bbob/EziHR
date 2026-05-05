@@ -29,8 +29,7 @@ class BiometricDevice(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        managed = False
-        db_table = 'enterprise_biometricdevice'
+        db_table = 'device_biometricdevice'
         ordering = ['serial_number']
 
     def __str__(self) -> str:
@@ -44,8 +43,7 @@ class EmployeeBiometricMapping(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        managed = False
-        db_table = 'enterprise_employeebiometricmapping'
+        db_table = 'device_employeebiometricmapping'
         ordering = ['employee__name', 'device__serial_number']
         unique_together = ('device', 'device_user_id')
         indexes = [
@@ -76,8 +74,7 @@ class DeviceCommand(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        managed = False
-        db_table = 'enterprise_devicecommand'
+        db_table = 'device_devicecommand'
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['device', 'status']),

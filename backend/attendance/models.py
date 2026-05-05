@@ -48,8 +48,6 @@ class DailyAttendance(models.Model):
     attendance_date = models.DateField(db_index=True)
     first_check_in = models.DateTimeField(blank=True, null=True)
     last_check_out = models.DateTimeField(blank=True, null=True)
-    first_break_out = models.DateTimeField(blank=True, null=True)
-    last_break_in = models.DateTimeField(blank=True, null=True)
     first_ot_in = models.DateTimeField(blank=True, null=True)
     last_ot_out = models.DateTimeField(blank=True, null=True)
     worked_minutes = models.PositiveIntegerField(default=0)
