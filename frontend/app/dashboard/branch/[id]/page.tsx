@@ -142,7 +142,6 @@ export default function BranchDetailPage() {
           id: row.employee?.id || 0,
           name: row.employee?.name || 'Unknown',
           employee_code: row.employee?.employee_code,
-          is_admin: row.employee?.user?.is_admin || false,
           stats: {
             present: row.present,
             check_in: row.check_in,

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Suspense } from "react";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { FilterProvider } from "@/hooks/useFilters";
@@ -35,7 +36,9 @@ export default function RootLayout({
         <FilterProvider>
           <RightSidebarProvider>
             <TooltipProvider>
-              <AppShell>{children}</AppShell>
+              <Suspense fallback={null}>
+                <AppShell>{children}</AppShell>
+              </Suspense>
             </TooltipProvider>
           </RightSidebarProvider>
         </FilterProvider>
