@@ -3,6 +3,7 @@
 import * as React from "react"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { createAdSelection, parseDateString, type CalendarSelection } from "@/lib/calendar-sync"
 
 const AD_MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"
@@ -30,14 +31,24 @@ function createAdMonthGrid(referenceDate: Date) {
   }
 }
 
-export function AdCalendar() {
+type AdCalendarProps = {
+  selectedDate?: string
+  onDateSelect?: (selection: CalendarSelection) => void
+}
+
+type MonthState = {
+  year: number
+  month: number
+}
+
+export function AdCalendar({ selectedDate, onDateSelect }: AdCalendarProps) {
   const today = React.useMemo(() => {
     const d = new Date()
     return { year: d.getFullYear(), month: d.getMonth(), date: d.getDate() }
   }, [])
-  const [displayMonth, setDisplayMonth] = React.useState(() => ({
-    year: today.year,
-    month: today.month,
+  const [displayMonth, setDisplayMonth] = React.useState<MonthState>(() => ({
+    year: selectedDate ? parseDateString(selectedDate).year : today.year,
+    month: selectedDate ? parseDateString(selectedDate).month : today.month,
   }))
 
   const { year, month, cells } = React.useMemo(
@@ -68,6 +79,11 @@ export function AdCalendar() {
   const goToCurrentMonth = React.useCallback(() => {
     setDisplayMonth({ year: today.year, month: today.month })
   }, [today.month, today.year])
+
+  const selectedParts = React.useMemo(
+    () => (selectedDate ? parseDateString(selectedDate) : null),
+    [selectedDate]
+  )
 
   return (
     <Card className="border-border/60 shadow-sm">
@@ -121,13 +137,21 @@ export function AdCalendar() {
               }
 
               const isToday = today.year === year && today.month === month && today.date === cell
+              const isSelected =
+                selectedParts?.year === year &&
+                selectedParts?.month === month &&
+                selectedParts?.day === cell
 
               const baseClass =
                 "relative isolate z-10 flex aspect-square size-auto w-full min-w-[2.5rem] items-center justify-center border-0 px-1 leading-tight font-medium text-[0.75rem] transition-colors select-none rounded-md"
               const stateClass =
                 isToday
                   ? "bg-primary text-primary-foreground shadow-sm"
+                  : isSelected
+                  ? "bg-primary/15 text-foreground ring-1 ring-primary/25"
                   : "bg-background hover:bg-muted/60"
+
+              const dateSelection = createAdSelection(year, month, cell)
 
               return (
                 <button
@@ -135,6 +159,7 @@ export function AdCalendar() {
                   type="button"
                   className={`${baseClass} ${stateClass}`}
                   aria-label={`AD date ${cell}`}
+                  onClick={() => onDateSelect?.(dateSelection)}
                 >
                   {cell}
                 </button>

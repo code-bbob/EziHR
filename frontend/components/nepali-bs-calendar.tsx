@@ -5,6 +5,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getTodayDate, getDaysInMonth, getFirstDayOfMonth } from "bs-ad-calendar-react"
 import type { DateInfo } from "bs-ad-calendar-react"
+import { createBsSelection, parseDateString, type CalendarSelection } from "@/lib/calendar-sync"
 
 const BS_MONTH_NAMES = [
   "बैशाख",
@@ -23,6 +24,16 @@ const BS_MONTH_NAMES = [
 
 const BS_WEEK_DAYS = ["आइत", "सोम", "मंगल", "बुध", "बिही", "शुक्र", "शनि"]
 const NEPALI_DIGITS = ["०", "१", "२", "३", "४", "५", "६", "७", "८", "९"]
+
+type MonthState = {
+  year: number
+  month: number
+}
+
+type NepaliBSCalendarProps = {
+  selectedDate?: string
+  onDateSelect?: (selection: CalendarSelection) => void
+}
 
 function toNepaliDigits(value: number | string) {
   return String(value).replace(/\d/g, (digit) => NEPALI_DIGITS[Number(digit)])
@@ -45,16 +56,21 @@ function createBsMonthGrid(today: DateInfo) {
   }
 }
 
-export function NepaliBSCalendar() {
+export function NepaliBSCalendar({ selectedDate, onDateSelect }: NepaliBSCalendarProps) {
   const today = React.useMemo(() => getTodayDate("BS"), [])
-  const [displayMonth, setDisplayMonth] = React.useState(() => ({
-    year: today.year,
-    month: today.month,
+  const [displayMonth, setDisplayMonth] = React.useState<MonthState>(() => ({
+    year: selectedDate ? parseDateString(selectedDate).year : today.year,
+    month: selectedDate ? parseDateString(selectedDate).month : today.month,
   }))
 
   const { bs, cells } = React.useMemo(
     () => createBsMonthGrid({ ...today, year: displayMonth.year, month: displayMonth.month }),
     [displayMonth.month, displayMonth.year, today]
+  )
+
+  const selectedParts = React.useMemo(
+    () => (selectedDate ? parseDateString(selectedDate) : null),
+    [selectedDate]
   )
 
   const goToPreviousMonth = React.useCallback(() => {
@@ -140,6 +156,10 @@ export function NepaliBSCalendar() {
 
               const isToday =
                 today.year === bs.year && today.month === bs.month && today.day === cell
+              const isSelected =
+                selectedParts?.year === bs.year &&
+                selectedParts?.month === bs.month &&
+                selectedParts?.day === cell
               const holiday = holidays.find(
                 (item) => item.month === bs.month && item.date === cell
               )
@@ -148,9 +168,13 @@ export function NepaliBSCalendar() {
               const stateClass =
                 isToday
                   ? "bg-primary text-primary-foreground shadow-sm"
+                  : isSelected
+                  ? "bg-primary/15 text-foreground ring-1 ring-primary/25"
                   : holiday
                   ? "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400"
                   : "bg-background hover:bg-muted/60"
+
+              const dateSelection = createBsSelection(bs.year, bs.month, cell)
 
               return (
                 <button
@@ -158,6 +182,7 @@ export function NepaliBSCalendar() {
                   type="button"
                   className={`${baseClass} ${stateClass}`}
                   aria-label={`BS date ${cell}`}
+                  onClick={() => onDateSelect?.(dateSelection)}
                 >
                   {toNepaliDigits(cell)}
                 </button>
