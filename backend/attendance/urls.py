@@ -1,4 +1,5 @@
 from django.urls import path
+from django.urls import include
 
 from .views import (
     DashboardAPIView,
@@ -49,6 +50,5 @@ urlpatterns = [
             name='monthly_summary_detailed'),
     
     path('api/events/stream/', sse_events_view, name='events_stream'),
-    path('iclock/cdata/', IClockCDataView.as_view()),
-    path('iclock/getrequest/', IClockGetRequestView.as_view()),
+    path('', include('device.iclock_urls')),
 ]

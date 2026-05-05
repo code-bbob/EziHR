@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any
 
 from enterprise.models import Employee
-from device.models import BiometricDevice, EmployeeBiometricMapping
+
+from .models import BiometricDevice, EmployeeBiometricMapping
 
 
 class BiometricDeviceSyncError(RuntimeError):
@@ -46,7 +47,6 @@ def sync_employee_to_device(employee: Employee, device: BiometricDevice) -> Empl
         users = conn.get_users() or []
         for user in users:
             if str(getattr(user, 'user_id', '')).strip() == device_user_id:
-                # User ID already exists on device - this is expected, just update the mapping
                 mapping, _ = EmployeeBiometricMapping.objects.update_or_create(
                     device=device,
                     device_user_id=device_user_id,
@@ -54,7 +54,6 @@ def sync_employee_to_device(employee: Employee, device: BiometricDevice) -> Empl
                 )
                 return mapping
 
-        # Only create new user if ID not found on device
         existing_uids = {
             getattr(user, 'uid', None)
             for user in users

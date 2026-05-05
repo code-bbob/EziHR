@@ -3,7 +3,8 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 from unittest.mock import patch
 
-from .models import Branch, Department, Employee, Enterprise, BiometricDevice, EmployeeBiometricMapping
+from .models import Branch, Department, Employee, Enterprise
+from device.models import BiometricDevice, EmployeeBiometricMapping, DeviceCommand
 
 User = get_user_model()
 
@@ -145,8 +146,6 @@ class EmployeeCreateAndSyncAPITests(TestCase):
 		self.assertEqual(response.data['mapping']['device_user_id'], self.employee.employee_code)
 
 	def test_device_acknowledgement_marks_command_done(self):
-		from .models import DeviceCommand
-
 		command = DeviceCommand.objects.create(
 			device=self.device,
 			user_id=self.employee.employee_code,

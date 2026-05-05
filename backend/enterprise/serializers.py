@@ -1,7 +1,8 @@
 from rest_framework import serializers
 
-from .models import Branch, Department, Enterprise, BiometricDevice, EmployeeBiometricMapping, DeviceCommand
+from .models import Branch, Department, Enterprise
 from .models import Employee
+from device.models import BiometricDevice, EmployeeBiometricMapping, DeviceCommand
 from userauth.models import UserProfile
 
 

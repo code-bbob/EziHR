@@ -5,7 +5,8 @@ from datetime import datetime, timedelta
 from django.db import transaction
 from django.utils import timezone
 
-from enterprise.models import Employee, BiometricDevice, EmployeeBiometricMapping
+from enterprise.models import Employee
+from device.models import BiometricDevice, EmployeeBiometricMapping
 
 from .models import AttendanceEvent, DailyAttendance
 from .ssm import publish_event

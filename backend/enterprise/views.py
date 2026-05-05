@@ -5,18 +5,21 @@ from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 from django.db import transaction, models
 
-from .models import Branch, Department, Enterprise, Employee, BiometricDevice, EmployeeBiometricMapping, DeviceCommand
+from .models import Branch, Department, Enterprise, Employee
 from .serializers import (
 	BranchSerializer,
 	DepartmentSerializer,
 	EnterpriseHierarchySerializer,
 	EmployeeCreateSerializer,
 	EmployeeSerializer,
-	BiometricEnrollmentSerializer,
-	EmployeeBiometricMappingSerializer,
-	BiometricDeviceSerializer,
-	DeviceCommandSerializer,
-	CreateDeviceCommandSerializer,
+)
+from device.models import BiometricDevice, EmployeeBiometricMapping, DeviceCommand
+from device.serializers import (
+    BiometricEnrollmentSerializer,
+    EmployeeBiometricMappingSerializer,
+    BiometricDeviceSerializer,
+    DeviceCommandSerializer,
+    CreateDeviceCommandSerializer,
 )
 from datetime import datetime
 from django.contrib.auth import get_user_model
@@ -564,140 +567,4 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 
 
-@csrf_exempt
-@require_http_methods(["GET"])
-def adms_cdata(request):
-    """
-    ADMS handshake endpoint: /iclock/cdata?SN=<serial>
-    - Devices call this on first connection or periodic check-in
-    - Returns device registration/update response
-    """
-    serial_number = request.GET.get('SN', '').strip()
-    if not serial_number:
-        return HttpResponse('ERROR', status=400)
-    
-    try:
-        device = BiometricDevice.objects.get(serial_number=serial_number)
-        # Update last_seen timestamp
-        device.last_seen_at = timezone.now()
-        device.save(update_fields=['last_seen_at'])
-    except BiometricDevice.DoesNotExist:
-        # Device doesn't exist, create it if it's a valid serial
-        device = BiometricDevice.objects.create(
-            serial_number=serial_number,
-            is_active=True,
-            last_seen_at=timezone.now(),
-        )
-    
-    # Return the ADMS protocol response
-    return HttpResponse(f'GET OPTION FROM: {serial_number}', content_type='text/plain')
 
-
-@csrf_exempt
-@require_http_methods(["GET"])
-def adms_getrequest(request):
-    """
-    ADMS command polling endpoint: /iclock/getrequest?SN=<serial>
-    - Device polls for pending commands
-    - Returns pending user info in ADMS format or OK if none
-    """
-    serial_number = request.GET.get('SN', '').strip()
-    if not serial_number:
-        return HttpResponse('ERROR', status=400)
-    
-    try:
-        device = BiometricDevice.objects.get(serial_number=serial_number)
-    except BiometricDevice.DoesNotExist:
-        return HttpResponse('ERROR', status=400)
-    
-    # Get the first pending command for this device
-    command = DeviceCommand.objects.filter(
-        device=device,
-        status='pending'
-    ).first()
-    
-    if command:
-        # Format: C:<command_id>:DATA UPDATE USERINFO PIN=<user_id>\tName=<name>\tPri=0\tPasswd=\tCard=\t
-        response = f'C:{command.id}:DATA UPDATE USERINFO PIN={command.user_id}\tName={command.name}\tPri=0\tPasswd=\tCard=\t'
-        return HttpResponse(response, content_type='text/plain')
-    else:
-        return HttpResponse('OK', content_type='text/plain')
-
-
-@csrf_exempt
-@require_http_methods(["POST"])
-def adms_devicecmd(request):
-    """
-    ADMS command acknowledgement endpoint: /iclock/devicecmd?SN=<serial>
-    - Device sends acknowledgement after processing a command
-    - Parse command ID from request body and mark as done
-    """
-    serial_number = request.GET.get('SN', '').strip()
-    if not serial_number:
-        return HttpResponse('ERROR', status=400)
-    
-    try:
-        device = BiometricDevice.objects.get(serial_number=serial_number)
-    except BiometricDevice.DoesNotExist:
-        return HttpResponse('ERROR', status=400)
-    
-    # Parse command ID from request body.
-    # Devices typically send: "C:<command_id>:success".
-    # Some firmware variants include extra whitespace or a slightly different payload,
-    # so we fall back to the oldest pending command for that device instead of
-    # rejecting the request with a 400 and causing endless retries.
-    body = request.body.decode('utf-8', errors='ignore').strip()
-    command_id = None
-
-    if body:
-        parts = body.split(':')
-        if len(parts) >= 2 and parts[0] == 'C':
-            try:
-                command_id = int(parts[1])
-            except (ValueError, IndexError):
-                command_id = None
-
-    command = None
-    if command_id is not None:
-        command = DeviceCommand.objects.filter(id=command_id, device=device).first()
-
-    if command is None:
-        command = DeviceCommand.objects.filter(device=device, status='pending').order_by('created_at', 'id').first()
-
-    if command is not None:
-        command.status = 'done'
-        command.save(update_fields=['status'])
-
-    return HttpResponse('OK', content_type='text/plain')
-
-
-# ============================================================================
-# DRF Endpoints (Frontend-to-Server communication)
-# ============================================================================
-
-class CreateDeviceCommandAPIView(APIView):
-    """Create a pending command for a device from the frontend."""
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        serializer = CreateDeviceCommandSerializer(
-            data=request.data,
-            context={'request': request}
-        )
-        if serializer.is_valid():
-            command = serializer.save()
-            return Response(
-                DeviceCommandSerializer(command).data,
-                status=HTTP_201_CREATED
-            )
-        return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
-
-
-class ListDevicesAPIView(APIView):
-    """List all biometric devices with status and last_seen info."""
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        devices = BiometricDevice.objects.all().order_by('-last_seen_at')
-        serializer = BiometricDeviceSerializer(devices, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)

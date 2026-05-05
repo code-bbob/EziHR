@@ -5,7 +5,8 @@ from rest_framework.test import APIClient
 
 from attendance.models import AttendanceEvent, DailyAttendance
 from attendance.services import build_dashboard_rows, record_device_event
-from enterprise.models import Employee, BiometricDevice, EmployeeBiometricMapping, Enterprise, Branch
+from enterprise.models import Employee, Enterprise, Branch
+from device.models import BiometricDevice, EmployeeBiometricMapping
 
 
 class AttendanceAggregationTests(TestCase):
