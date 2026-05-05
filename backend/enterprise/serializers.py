@@ -56,7 +56,7 @@ class BiometricDeviceSerializer(serializers.ModelSerializer):
     class Meta:
         model = BiometricDevice
         fields = [
-            'id', 'name', 'serial_number', 'device_model', 'enterprise', 'branch',
+            'id', 'name', 'serial_number', 'device_ip', 'device_port', 'device_model', 'enterprise', 'branch',
             'is_active', 'last_seen_at', 'created_at',
         ]
 
@@ -131,7 +131,7 @@ class EmployeeCreateSerializer(serializers.Serializer):
     username = serializers.CharField(max_length=150)
     password = serializers.CharField(write_only=True, min_length=6)
     email = serializers.EmailField(required=False, allow_blank=True)
-    employee_code = serializers.CharField(max_length=64)
+    employee_code = serializers.CharField(max_length=64, required=False, allow_blank=True)
     name = serializers.CharField(max_length=255)
     avatar = serializers.ImageField(required=False, allow_null=True)
     enterprise_id = serializers.IntegerField(required=True)
@@ -184,12 +184,14 @@ class EmployeeCreateSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         from django.contrib.auth import get_user_model
+        from uuid import uuid4
 
         User = get_user_model()
 
         enterprise = validated_data.pop('enterprise')
         branch = validated_data.pop('branch')
         department = validated_data.pop('department', None)
+        provided_employee_code = validated_data.pop('employee_code', '').strip()
         
         # Extract user-related fields
         username = validated_data.pop('username')
@@ -216,9 +218,13 @@ class EmployeeCreateSerializer(serializers.Serializer):
             branch=branch,
             department=department,
             name=name,
-            employee_code=validated_data.pop('employee_code'),
+            employee_code=provided_employee_code or f'TEMP-{uuid4().hex[:10].upper()}',
             avatar=validated_data.pop('avatar', None),
             is_active=validated_data.pop('is_active', True),
         )
+
+        if not provided_employee_code:
+            employee.employee_code = str(employee.id)
+        employee.save(update_fields=['employee_code'])
 
         return employee

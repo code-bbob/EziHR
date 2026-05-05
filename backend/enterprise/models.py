@@ -74,6 +74,8 @@ class BiometricDevice(models.Model):
     )
     name = models.CharField(max_length=255, blank=True, default='')
     serial_number = models.CharField(max_length=64, unique=True)
+    device_ip = models.CharField(max_length=255, blank=True, default='')
+    device_port = models.PositiveIntegerField(default=4370)
     device_model = models.CharField(max_length=255, blank=True, default='')
     is_active = models.BooleanField(default=True)
     last_seen_at = models.DateTimeField(blank=True, null=True)

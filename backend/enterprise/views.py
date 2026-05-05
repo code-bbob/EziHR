@@ -20,6 +20,7 @@ from datetime import datetime
 from django.contrib.auth import get_user_model
 from rest_framework import status
 from userauth.serializers import UserSerializer
+from .device_sync import BiometricDeviceSyncError, sync_employee_to_device
 
 User = get_user_model()
 
@@ -387,6 +388,51 @@ class BiometricDeviceListAPIView(APIView):
 
         serializer = BiometricDeviceSerializer(devices, many=True)
         return Response({'devices': serializer.data})
+
+
+class EmployeeDeviceSyncAPIView(APIView):
+    """Sync an existing employee to a biometric device using the employee code as the device user ID."""
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        enterprise = _resolve_user_enterprise(request.user)
+        if enterprise is None:
+            return Response({'error': 'No enterprise is mapped to this user'}, status=HTTP_403_FORBIDDEN)
+
+        employee_id = request.data.get('employee_id')
+        device_id = request.data.get('device_id')
+        if not employee_id or not device_id:
+            return Response(
+                {'error': 'employee_id and device_id are required'},
+                status=HTTP_400_BAD_REQUEST,
+            )
+
+        employee = Employee.objects.select_related('enterprise').filter(id=employee_id, enterprise=enterprise).first()
+        if employee is None:
+            return Response({'error': 'Employee not found'}, status=HTTP_404_NOT_FOUND)
+
+        device = BiometricDevice.objects.filter(id=device_id).first()
+        if device is None:
+            return Response({'error': 'Biometric device not found'}, status=HTTP_404_NOT_FOUND)
+
+        if device.enterprise_id and device.enterprise_id != enterprise.id:
+            return Response({'error': 'Device does not belong to your enterprise'}, status=HTTP_403_FORBIDDEN)
+
+        if not device.is_active:
+            return Response({'error': 'Selected biometric device is inactive'}, status=HTTP_400_BAD_REQUEST)
+
+        try:
+            mapping = sync_employee_to_device(employee, device)
+        except BiometricDeviceSyncError as exc:
+            return Response({'error': str(exc)}, status=HTTP_400_BAD_REQUEST)
+
+        return Response(
+            {
+                'message': 'Employee synced to device successfully',
+                'mapping': EmployeeBiometricMappingSerializer(mapping, context={'request': request}).data,
+            },
+            status=HTTP_201_CREATED,
+        )
 
 
 class LinkUserToEmployeeAPIView(APIView):

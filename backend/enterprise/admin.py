@@ -73,7 +73,7 @@ class BiometricDeviceAdmin(admin.ModelAdmin):
 	list_display = ('serial_number', 'name', 'enterprise', 'branch', 'is_active', 'last_seen_at', 'created_at')
 	list_filter = ('is_active', 'enterprise', 'branch')
 	search_fields = ('serial_number', 'name', 'device_model')
-	fields = ('name', 'serial_number', 'device_model', 'enterprise', 'branch', 'is_active', 'last_seen_at')
+	fields = ('name', 'serial_number', 'device_ip', 'device_port', 'device_model', 'enterprise', 'branch', 'is_active', 'last_seen_at')
 
 
 @admin.register(EmployeeBiometricMapping)

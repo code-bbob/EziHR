@@ -9,6 +9,7 @@ from .views import (
     EmployeeDetailAPIView,
     BiometricEnrollmentAPIView,
     BiometricDeviceListAPIView,
+    EmployeeDeviceSyncAPIView,
     LinkUserToEmployeeAPIView,
 )
 
@@ -28,5 +29,6 @@ urlpatterns = [
     # Biometric device enrollment
     path('api/biometric/enroll/', BiometricEnrollmentAPIView.as_view(), name='biometric_enroll'),
     path('api/biometric/devices/', BiometricDeviceListAPIView.as_view(), name='biometric_devices'),
+    path('api/employees/sync-device/', EmployeeDeviceSyncAPIView.as_view(), name='employee_sync_device'),
 
 ]
