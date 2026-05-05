@@ -91,7 +91,6 @@ interface DashboardSidebarProps extends React.ComponentProps<typeof Sidebar> {
 }
 
 export function DashboardSidebar({
-  enterpriseName = "Enterprise",
   selectedBranchName = null,
   attendanceDate,
   totalEmployees = 0,
@@ -119,6 +118,7 @@ export function DashboardSidebar({
   const { state, toggleSidebar } = useSidebar();
   const router = useRouter();
   const collapsed = state === "collapsed";
+  const [enterpriseName, setEnterpriseName] = useState("");
   const [expandedPlatform, setExpandedPlatform] = useState(true);
   const [expandedSelect, setExpandedSelect] = useState(true);
   const [expandedEmployees, setExpandedEmployees] = useState(true);
@@ -147,6 +147,7 @@ export function DashboardSidebar({
       const fetchedDepartments: DashboardSidebarDepartment[] = (ent.departments || []).map((d: any) => ({ id: d.id, name: d.name, branch_id: d.branch ? d.branch.id : null }));
       setLocalBranches(fetchedBranches);
       setLocalDepartments(fetchedDepartments);
+      setEnterpriseName(ent.name);
     } catch (err) {
       // silent fail - do not change UI classes
     }
@@ -205,7 +206,7 @@ export function DashboardSidebar({
             </div>
             {!collapsed && (
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold leading-tight text-foreground">EziHR</p>
+                <p className="text-sm font-semibold leading-tight text-foreground">EziHR - {enterpriseName}</p>
                 <div className="flex flex-wrap gap-1.5 mt-2">
                   {!selectedBranchName && !selectedDepartmentName && (
                     <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded font-bold uppercase tracking-wider">

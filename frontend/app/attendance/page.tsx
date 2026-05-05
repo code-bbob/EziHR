@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, Suspense, useState } from 'react';
+import { useEffect, Suspense, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useApi } from '@/lib/hooks/useApi';
 import { apiClient, type DashboardData } from '@/lib/api-client';
@@ -29,6 +29,64 @@ type AttendanceRowsResponse = {
   };
 };
 
+type BreakSession = {
+  break_out?: string | null;
+  break_in?: string | null;
+};
+
+const formatTime = (value?: string | null) =>
+  value
+    ? new Date(value).toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    : '-';
+
+const getBreakSessions = (row: AttendanceRow): BreakSession[] => {
+  if (Array.isArray(row.break_sessions) && row.break_sessions.length > 0) {
+    return row.break_sessions;
+  }
+  return [];
+};
+
+const applyBreakEventToSessions = (
+  sessions: BreakSession[] | undefined,
+  eventType: number,
+  eventTime: string
+): BreakSession[] => {
+  const nextSessions = Array.isArray(sessions) ? [...sessions] : [];
+  const hasBreakOutAtTime = nextSessions.some((session) => session.break_out === eventTime);
+  const hasBreakInAtTime = nextSessions.some((session) => session.break_in === eventTime);
+
+  if (eventType === 2) {
+    // SSE may deliver the same event more than once; ignore duplicates.
+    if (hasBreakOutAtTime) {
+      return nextSessions;
+    }
+    const lastSession = nextSessions[nextSessions.length - 1];
+    if (!lastSession || lastSession.break_in) {
+      nextSessions.push({ break_out: eventTime, break_in: null });
+    } else {
+      lastSession.break_out = eventTime;
+    }
+  }
+
+  if (eventType === 3) {
+    // SSE may deliver the same event more than once; ignore duplicates.
+    if (hasBreakInAtTime) {
+      return nextSessions;
+    }
+    const lastSession = nextSessions[nextSessions.length - 1];
+    if (lastSession && !lastSession.break_in) {
+      lastSession.break_in = eventTime;
+    } else {
+      nextSessions.push({ break_out: null, break_in: eventTime });
+    }
+  }
+
+  return nextSessions;
+};
+
 function AttendanceContent() {
   const { loading: authLoading, isAuthenticated } = useAuth();
   const router = useRouter();
@@ -52,6 +110,7 @@ function AttendanceContent() {
   const [showAllLoading, setShowAllLoading] = useState(false);
   const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
   const [allAttendanceRows, setAllAttendanceRows] = useState<AttendanceRow[]>([]);
+  const seenEventKeysRef = useRef<Set<string>>(new Set());
 
   const applyEventToRows = (prevRows: AttendanceRow[], payload: any) => {
     if (!payload) return { rows: prevRows, added: false };
@@ -88,6 +147,9 @@ function AttendanceContent() {
           row.worked_minutes = authoritativeWorkedMinutes;
         }
 
+        if (eventType === 2 || eventType === 3) {
+          row.break_sessions = applyBreakEventToSessions(row.break_sessions, eventType, eventTime);
+        }
         if (eventType === 2) row.break_out = eventTime;
         if (eventType === 3) row.break_in = eventTime;
         if (eventType === 4) row.ot_in = eventTime;
@@ -106,6 +168,12 @@ function AttendanceContent() {
         present: true,
         check_in: eventType === 0 ? eventTime : null,
         check_out: eventType === 1 ? eventTime : null,
+        break_sessions:
+          eventType === 2
+            ? [{ break_out: eventTime, break_in: null }]
+            : eventType === 3
+              ? [{ break_out: null, break_in: eventTime }]
+              : [],
         break_out: eventType === 2 ? eventTime : null,
         break_in: eventType === 3 ? eventTime : null,
         ot_in: eventType === 4 ? eventTime : null,
@@ -188,6 +256,19 @@ function AttendanceContent() {
       es.onmessage = (e) => {
         try {
           const payload = JSON.parse(e.data);
+          const eventId = payload?.event_id;
+          const fallbackKey = `${payload?.employee_id ?? 'x'}:${payload?.event_type ?? 'x'}:${payload?.event_time ?? 'x'}`;
+          const eventKey = eventId ? `id:${String(eventId)}` : `sig:${fallbackKey}`;
+
+          if (seenEventKeysRef.current.has(eventKey)) {
+            return;
+          }
+          seenEventKeysRef.current.add(eventKey);
+          if (seenEventKeysRef.current.size > 500) {
+            const keys = Array.from(seenEventKeysRef.current);
+            seenEventKeysRef.current = new Set(keys.slice(keys.length - 250));
+          }
+
           setAttendanceRows((prev) => {
             const { rows, added } = applyEventToRows(prev, payload);
             if (added) setTotalCount((count) => count + 1);
@@ -341,18 +422,19 @@ function AttendanceContent() {
                       <TableRow>
                         <TableHead>S.N.</TableHead>
                         <TableHead>Employee Name</TableHead>
-                        <TableHead>Employee Code</TableHead>
                         <TableHead>Department</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Check In</TableHead>
                         <TableHead>Check Out</TableHead>
+                         <TableHead>Break Out</TableHead>
+                         <TableHead>Break In</TableHead>
                         <TableHead>Hours Worked</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {tableRows.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="py-12 text-center text-muted-foreground">
+                          <TableCell colSpan={9} className="py-12 text-center text-muted-foreground">
                             {rowsLoading ? 'Loading attendance rows...' : 'No attendance records found'}
                           </TableCell>
                         </TableRow>
@@ -373,7 +455,6 @@ function AttendanceContent() {
                               {row.employee?.name || 'Unknown'}
                             </Button>
                           </TableCell>
-                          <TableCell>{row.employee?.employee_code || '-'}</TableCell>
                           <TableCell>-</TableCell>
                           <TableCell>
                             <span
@@ -387,22 +468,38 @@ function AttendanceContent() {
                             </span>
                           </TableCell>
                           <TableCell>
-                            {row.check_in
-                              ? new Date(row.check_in).toLocaleTimeString('en-US', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })
-                              : '-'}
+                            {formatTime(row.check_in)}
                           </TableCell>
                           <TableCell>
-                            {row.check_out
-                              ? new Date(row.check_out).toLocaleTimeString('en-US', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })
-                              : '-'}
+                            {formatTime(row.check_out)}
                           </TableCell>
-                          <TableCell>{((row.worked_minutes || 0) / 60).toFixed(2)} hrs</TableCell>
+                          <TableCell>
+                            {getBreakSessions(row).length > 0 ? (
+                              <div className="space-y-1">
+                                {getBreakSessions(row).map((session, sessionIndex) => (
+                                  <div key={`${row.employee?.id || idx}-break-out-${sessionIndex}`}>
+                                    {formatTime(session.break_out)}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              '-'
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {getBreakSessions(row).length > 0 ? (
+                              <div className="space-y-1">
+                                {getBreakSessions(row).map((session, sessionIndex) => (
+                                  <div key={`${row.employee?.id || idx}-break-in-${sessionIndex}`}>
+                                    {formatTime(session.break_in)}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              '-'
+                            )}
+                          </TableCell>
+                            <TableCell>{((row.worked_minutes || 0) / 60).toFixed(2)} hrs</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

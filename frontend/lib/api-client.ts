@@ -118,6 +118,10 @@ export interface AttendanceRow {
   present: boolean;
   check_in?: string | null;
   check_out?: string | null;
+  break_sessions?: Array<{
+    break_out?: string | null;
+    break_in?: string | null;
+  }>;
   break_out?: string | null;
   break_in?: string | null;
   ot_in?: string | null;
