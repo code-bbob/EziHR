@@ -596,6 +596,12 @@ class ApiClient {
         method: 'POST',
         body: JSON.stringify({ employee_id: employeeId, device_identifier: deviceIdentifier }),
       }),
+
+    syncToDevice: (employeeId: number, deviceId: number) =>
+      this.request<any>('/enterprise/api/employees/sync-device/', {
+        method: 'POST',
+        body: JSON.stringify({ employee_id: employeeId, device_id: deviceId }),
+      }),
   };
 
   // Biometric device endpoints

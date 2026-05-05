@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { apiClient, type EnterpriseHierarchyItem } from '@/lib/api-client';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface AddDepartmentModalProps {
   isOpen: boolean;
@@ -63,78 +67,85 @@ export function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDepartment
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-900">
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">Add Department</h2>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {userEnterprise
-                ? `Create departments for: ${userEnterprise.name}`
-                : 'Loading enterprise information...'}
-            </p>
-          </div>
-          <button onClick={onClose} className="rounded-lg px-3 py-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800">
-            ✕
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md overflow-y-auto max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle>Add Department</DialogTitle>
+          <DialogDescription>
+            {userEnterprise
+              ? `Create departments for: ${userEnterprise.name}`
+              : 'Loading enterprise information...'}
+          </DialogDescription>
+        </DialogHeader>
 
-        {error && <div className="mb-4 rounded-lg border border-red-300 bg-red-50 p-3 text-red-700">{error}</div>}
+        {error && (
+          <div className="rounded-lg border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
 
         {!fetching && !userEnterprise && (
-          <div className="mb-4 rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-yellow-700">
+          <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-sm text-yellow-700">
             You are not associated with any enterprise. Contact your administrator.
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Department Name *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
-              required
-              disabled={!userEnterprise || fetching}
-            />
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Department Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Department Name *</label>
+                <Input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  disabled={!userEnterprise || fetching}
+                  placeholder="Enter department name"
+                />
+              </div>
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Branch (Optional)</label>
-            <select
-              value={branchId}
-              onChange={(e) => setBranchId(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-zinc-900 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
-              disabled={!userEnterprise || fetching}
-            >
-              <option value="">No branch</option>
-              {branchOptions.map((branch) => (
-                <option key={branch.id} value={branch.id}>
-                  {branch.name}
-                </option>
-              ))}
-            </select>
-          </div>
+              <div>
+                <label className="text-sm font-medium">Branch (Optional)</label>
+                <select
+                  value={branchId}
+                  onChange={(e) => setBranchId(e.target.value)}
+                  className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  disabled={!userEnterprise || fetching}
+                >
+                  <option value="">No branch</option>
+                  {branchOptions.map((branch) => (
+                    <option key={branch.id} value={branch.id}>
+                      {branch.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </CardContent>
+          </Card>
 
           <div className="flex gap-3 pt-2">
-            <button
+            <Button
               type="submit"
               disabled={loading || !userEnterprise || fetching}
-              className="flex-1 rounded-lg bg-blue-600 px-6 py-3 font-medium text-white hover:bg-blue-700 disabled:bg-blue-400"
+              className="flex-1"
             >
-              {loading ? 'Creating Department...' : 'Create Department'}
-            </button>
-            <button
+              {loading ? 'Creating...' : 'Create Department'}
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               onClick={onClose}
-              className="rounded-lg bg-zinc-200 px-6 py-3 font-medium text-zinc-800 hover:bg-zinc-300 dark:bg-zinc-700 dark:text-white dark:hover:bg-zinc-600"
+              className="flex-1"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

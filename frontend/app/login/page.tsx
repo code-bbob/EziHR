@@ -40,7 +40,7 @@ export default function LoginPage() {
           <Building2 className="mr-2 h-6 w-6" />
           EziHR
         </div>
-        <div className='relative text-white top-1/3 text-6xl font-medium'> <p>Human Resources, </p> <p className='text-5xl ml-48'>Made Effortless !!</p></div>
+        <div className='relative text-white top-1/3 text-6xl font-medium'> <p>Human Resources, </p> <p className='text-5xl ml-48'>made effortless !!</p></div>
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
             <p className="text-lg">

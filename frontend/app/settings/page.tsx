@@ -4,20 +4,21 @@ import React, { useEffect, useState } from 'react';
 import { apiClient, type EnterpriseHierarchyItem } from '@/lib/api-client';
 import { AddDepartmentModal } from '@/components/AddDepartmentModal';
 import { AddEmployeeModal } from '@/components/AddEmployeeModal';
-import { BiometricEnrollmentModal } from '@/components/BiometricEnrollmentModal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function SettingsPage() {
   const [hierarchy, setHierarchy] = useState<EnterpriseHierarchyItem[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [devices, setDevices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showAddDept, setShowAddDept] = useState(false);
   const [showAddEmp, setShowAddEmp] = useState(false);
-    const [showBiometricEnroll, setShowBiometricEnroll] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editingDeptId, setEditingDeptId] = useState<number | null>(null);
   const [deptForm, setDeptForm] = useState<Record<string, any>>({});
+  const [syncingEmployeeId, setSyncingEmployeeId] = useState<number | null>(null);
+  const [deviceSelections, setDeviceSelections] = useState<Record<number, string>>({});
 
   useEffect(() => {
     loadData();
@@ -30,7 +31,9 @@ export default function SettingsPage() {
       const h = await apiClient.enterprise.hierarchy();
       setHierarchy(h.enterprises || []);
       const e = await apiClient.employees.list();
-      setEmployees(e.employees || []);
+      setEmployees(e.results || e.employees || []);
+      const d = await apiClient.biometric.listDevices();
+      setDevices(d.devices || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -94,6 +97,28 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSyncEmployee = async (employeeId: number) => {
+    const deviceId = deviceSelections[employeeId];
+    if (!deviceId) {
+      setError('Please select a device to sync to');
+      return;
+    }
+    setSyncingEmployeeId(employeeId);
+    try {
+      await apiClient.employees.syncToDevice(employeeId, Number(deviceId));
+      setDeviceSelections((prev) => {
+        const updated = { ...prev };
+        delete updated[employeeId];
+        return updated;
+      });
+      setSyncingEmployeeId(null);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to sync employee');
+      setSyncingEmployeeId(null);
+    }
+  };
+
   return (
     <div className="flex-1 w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -101,7 +126,6 @@ export default function SettingsPage() {
         <div className="flex gap-2">
           <Button onClick={() => setShowAddDept(true)} variant="outline">Add Department</Button>
           <Button onClick={() => setShowAddEmp(true)}>Add Employee</Button>
-           <Button onClick={() => setShowBiometricEnroll(true)} variant="outline">Enroll Biometric</Button>
         </div>
       </div>
 
@@ -191,15 +215,20 @@ export default function SettingsPage() {
         <div className="space-y-3">
           {employees.map((emp) => (
             <Card key={emp.id} className="border-border/60">
-              <CardContent className="p-4 flex items-start justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-base truncate">{emp.name} — {emp.employee_code}</div>
-                  <div className="text-sm text-muted-foreground mt-1">
-                    Branch: {emp.branch?.name || '—'} — Department: {emp.department?.name || '—'}
+              <CardContent className="p-4 space-y-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium text-base truncate">{emp.name} — {emp.employee_code}</div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Branch: {emp.branch?.name || '—'} — Department: {emp.department?.name || '—'}
+                    </div>
                   </div>
+
+                  <Button size="sm" variant="destructive" onClick={() => handleEmployeeDelete(emp.id)}>Delete</Button>
                 </div>
 
-                <div className="flex gap-2 items-center shrink-0">
+                {/* Organization Assignment Row */}
+                <div className="flex gap-2 items-center">
                   <select
                     defaultValue={emp.branch?.id || ''}
                     onChange={(e) => handleEmployeeAssign(emp.id, { branch_id: e.target.value || null })}
@@ -223,8 +252,31 @@ export default function SettingsPage() {
                       </option>
                     ))}
                   </select>
+                </div>
 
-                  <Button size="sm" variant="destructive" onClick={() => handleEmployeeDelete(emp.id)}>Delete</Button>
+                {/* Device Sync Row */}
+                <div className="flex gap-2 items-center">
+                  <span className="text-sm font-medium">Sync to device:</span>
+                  <select
+                    value={deviceSelections[emp.id] || ''}
+                    onChange={(e) => setDeviceSelections((prev) => ({ ...prev, [emp.id]: e.target.value }))}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm flex-1"
+                  >
+                    <option value="">Select device</option>
+                    {devices.map((device) => (
+                      <option key={device.id} value={device.id}>
+                        {device.name || device.serial_number}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleSyncEmployee(emp.id)}
+                    disabled={syncingEmployeeId === emp.id || !deviceSelections[emp.id]}
+                  >
+                    {syncingEmployeeId === emp.id ? 'Syncing...' : 'Sync'}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -234,7 +286,6 @@ export default function SettingsPage() {
 
       <AddDepartmentModal isOpen={showAddDept} onClose={() => setShowAddDept(false)} onSuccess={() => { setShowAddDept(false); loadData(); }} />
       <AddEmployeeModal isOpen={showAddEmp} onClose={() => setShowAddEmp(false)} onSuccess={() => { setShowAddEmp(false); loadData(); }} />
-       <BiometricEnrollmentModal isOpen={showBiometricEnroll} onClose={() => setShowBiometricEnroll(false)} onSuccess={() => { setShowBiometricEnroll(false); }} />
     </div>
   );
 }
