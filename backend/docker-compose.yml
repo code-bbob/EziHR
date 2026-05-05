@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  attendance-web:
+    container_name: attendance-web
+    build: .
+    restart: unless-stopped
+
+    env_file:
+      - .env
+
+    environment:
+      # Proxy & SSL Settings
+      VIRTUAL_HOST: ezihajir.dgtech.com.np
+      VIRTUAL_PORT: 8000
+      LETSENCRYPT_HOST: ezihajir.dgtech.com.np
+      LETSENCRYPT_EMAIL: bibhab.dev@gmail.com
+
+      # Database Connection
+      DB_HOST: global-db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASS: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "8081:8000"
+
+    volumes:
+      - .:/app
+
+    networks:
+      - web_gateway
+
+    command: >
+      gunicorn backend.wsgi:application
+      --bind 0.0.0.0:8000
+      --workers 3
+      --worker-class gevent
+      --worker-connections 1000
+      --timeout 120
+      --access-logfile -
+      --error-logfile -
+
+networks:
+  web_gateway:
+    external: true

@@ -45,8 +45,6 @@ SECRET_KEY = 'django-insecure-*a4or3lnq%#s7s=+h(o=@&!cke1mt=yt)p)bx)kygu1g+fv+w)
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
-
 
 # Application definition
 
@@ -61,6 +59,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'userauth',
+
     'device',
     'enterprise',
     'attendance',
@@ -75,6 +74,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # add this
 ]
 
 ROOT_URLCONF = 'backend.urls'
@@ -170,6 +170,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://192.168.1.155:3000',  # Add your local network IP if needed
+    'https://ezi-hajir.vercel.app',
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -192,3 +193,16 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': True,
 }
 
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://ezihajir.dgtech.com.np",
+    "https://ezi-hajir.vercel.app",
+]
+
+ALLOWED_HOSTS = [
+    "ezihajir.dgtech.com.np",
+    '5.223.67.109',
+    "https://ezi-hajir.vercel.app",
+
+]
