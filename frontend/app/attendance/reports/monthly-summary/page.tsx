@@ -5,11 +5,12 @@ import { apiClient } from '@/lib/api-client';
 import { useFilters } from '@/hooks/useFilters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { buildCsv, downloadCsv, triggerPrint } from '@/lib/report-export';
 import { AttendanceReportTabs } from '@/components/attendance-report-tabs';
+import { AttendanceDateFilter } from '@/components/AttendanceDateFilter';
+import { DateFormatBadge } from '@/components/DateDisplay';
 
 function getMonthBounds() {
   const now = new Date();
@@ -26,28 +27,26 @@ export default function MonthlySummaryPage() {
   const initialBounds = getMonthBounds();
   const [startDate, setStartDate] = useState(initialBounds.startDate);
   const [endDate, setEndDate] = useState(initialBounds.endDate);
+  const [dateFormat, setDateFormat] = useState<'ad' | 'bs'>('ad');
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const reportLabel = useMemo(() => {
     if (!startDate || !endDate) return 'Selected dates';
-    const start = new Date(`${startDate}T00:00:00`);
-    const end = new Date(`${endDate}T00:00:00`);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 'Selected dates';
-    const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    return `${formatter.format(start)} — ${formatter.format(end)}`;
+    return `${startDate} — ${endDate}`;
   }, [startDate, endDate]);
 
-  async function loadReport() {
+  async function loadReport(nextStart = startDate, nextEnd = endDate, nextFormat = dateFormat) {
     setLoading(true);
     setError(null);
     try {
       const res = await apiClient.dashboard.getMonthlySummary({
-        startDate,
-        endDate,
+        startDate: nextStart,
+        endDate: nextEnd,
         branchId: selectedBranchId,
         departmentId: selectedDepartmentId,
+        dateFormat: nextFormat,
       });
       setData(res);
     } catch (err) {
@@ -101,30 +100,34 @@ export default function MonthlySummaryPage() {
         <p className="text-sm text-muted-foreground">Filter any date range and export the report as CSV or PDF.</p>
         <AttendanceReportTabs />
 
-        <div className="flex flex-col gap-3 rounded-lg border bg-background p-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="grid gap-3 sm:grid-cols-2 lg:flex lg:items-end lg:gap-3">
-            <div className="space-y-2">
-              <label className="text-xs px-2 font-medium uppercase tracking-wide text-muted-foreground">Start Date</label>
-              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full xl:w-[180px]" />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs px-2 font-medium uppercase tracking-wide text-muted-foreground">End Date</label>
-              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full xl:w-[180px]" />
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end">
-            <Button onClick={loadReport}>Apply</Button>
-            <Button variant="outline" onClick={handleExportCsv} disabled={!rows.length}>Export CSV</Button>
-            <Button variant="outline" onClick={triggerPrint} disabled={!rows.length}>Export PDF</Button>
-          </div>
-        </div>
+        <AttendanceDateFilter
+          mode="range"
+          initialDateFormat={dateFormat}
+          initialStartDate={startDate}
+          initialEndDate={endDate}
+          applyLabel="Apply Range"
+          onApply={({ startDate: nextStart, endDate: nextEnd, dateFormat: nextFormat }) => {
+            setStartDate(nextStart);
+            setEndDate(nextEnd);
+            setDateFormat(nextFormat);
+            void loadReport(nextStart, nextEnd, nextFormat);
+          }}
+        />
+
+        {/* exports moved into table header - compact layout, remove duplicate info bar */}
       </div>
 
       <Card className="w-full min-w-0 border-border/60 shadow-sm">
         <CardHeader className="border-b bg-muted/20">
           <CardTitle className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <span>Monthly Summary</span>
-            <span className="text-sm font-normal text-muted-foreground">{reportLabel}</span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-normal text-muted-foreground">{reportLabel}</span>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleExportCsv} disabled={!rows.length}>Export CSV</Button>
+                <Button variant="outline" onClick={triggerPrint} disabled={!rows.length}>Export PDF</Button>
+              </div>
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="overflow-hidden p-0">

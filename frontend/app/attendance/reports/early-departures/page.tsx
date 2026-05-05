@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useFilters } from '@/hooks/useFilters';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AttendanceReportTabs } from '@/components/attendance-report-tabs';
+import { AttendanceDateFilter } from '@/components/AttendanceDateFilter';
+import { DateFormatBadge } from '@/components/DateDisplay';
 
 function getToday() {
   const now = new Date();
@@ -24,24 +25,16 @@ export default function EarlyDeparturesReport() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attendanceDate, setAttendanceDate] = useState(getToday());
+  const [dateFormat, setDateFormat] = useState<'ad' | 'bs'>('ad');
 
-  const reportLabel = useMemo(() => {
-    const date = new Date(`${attendanceDate}T00:00:00`);
-    if (Number.isNaN(date.getTime())) return attendanceDate;
+  const reportLabel = useMemo(() => attendanceDate, [attendanceDate]);
 
-    return new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    }).format(date);
-  }, [attendanceDate]);
-
-  const loadReport = useCallback(async () => {
+  const loadReport = useCallback(async (nextDate = attendanceDate) => {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await apiClient.dashboard.getEarlyDepartures(selectedBranchId, selectedDepartmentId, attendanceDate);
+      const res = await apiClient.dashboard.getEarlyDepartures(selectedBranchId, selectedDepartmentId, nextDate);
       setData(res);
     } catch (err) {
       console.error(err);
@@ -66,18 +59,31 @@ export default function EarlyDeparturesReport() {
           <AttendanceReportTabs />
         </div>
 
-        <div className="flex flex-col gap-3 rounded-lg border bg-background p-4 sm:flex-row sm:items-end sm:justify-between">
-          <div className="space-y-2">
-            <label className="px-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Attendance Date</label>
-            <Input type="date" value={attendanceDate} onChange={(e) => setAttendanceDate(e.target.value)} className="w-full sm:w-[180px]" />
-          </div>
-          <Button onClick={loadReport} className="sm:shrink-0">Apply</Button>
-        </div>
+        <AttendanceDateFilter
+          mode="single"
+          initialDateFormat={dateFormat}
+          initialDate={attendanceDate}
+          applyLabel="Apply Date"
+          onApply={({ startDate: nextDate, dateFormat: nextFormat }) => {
+            setAttendanceDate(nextDate);
+            setDateFormat(nextFormat);
+            void loadReport(nextDate);
+          }}
+        />
+
+        {/* moved applied-date and actions into the table header for a compact layout */}
       </header>
 
       <Card className="border-border/60 shadow-sm">
         <CardHeader className="border-b bg-muted/20">
-          <CardTitle>Early Departures</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            <span>Early Departures</span>
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-normal text-muted-foreground">{reportLabel}</span>
+              <DateFormatBadge format={dateFormat} />
+              <Button onClick={() => loadReport()} className="sm:shrink-0">Refresh</Button>
+            </div>
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (

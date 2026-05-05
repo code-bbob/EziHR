@@ -2,7 +2,6 @@
 
 import * as React from "react"
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { getTodayDate, getDaysInMonth, getFirstDayOfMonth } from "bs-ad-calendar-react"
 import type { DateInfo } from "bs-ad-calendar-react"
 import { createBsSelection, parseDateString, type CalendarSelection } from "@/lib/calendar-sync"
@@ -104,93 +103,83 @@ export function NepaliBSCalendar({ selectedDate, onDateSelect }: NepaliBSCalenda
   ]
 
   return (
-    <Card className="border-border/60 shadow-sm">
-      <CardHeader className="space-y-1 pb-2">
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle className="text-base">Nepali BS Calendar</CardTitle>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={goToPreviousMonth}
-              className="inline-flex size-8 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Previous BS month"
-            >
-              <ChevronLeftIcon className="size-4" />
-            </button>
-            <button
-              type="button"
-              onClick={goToCurrentMonth}
-              className="rounded-full border border-border/60 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              BS {toNepaliDigits(bs.year)}
-            </button>
-            <button
-              type="button"
-              onClick={goToNextMonth}
-              className="inline-flex size-8 items-center justify-center rounded-full border border-border/60 bg-background text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Next BS month"
-            >
-              <ChevronRightIcon className="size-4" />
-            </button>
-          </div>
+    <div className="w-fit">
+      <div className="flex items-center justify-between gap-2 mb-3 px-1">
+        <button
+          type="button"
+          onClick={goToPreviousMonth}
+          className="inline-flex size-6 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          aria-label="Previous BS month"
+        >
+          <ChevronLeftIcon className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={goToCurrentMonth}
+          className="text-xs font-semibold text-foreground min-w-fit"
+        >
+          {BS_MONTH_NAMES[bs.month]} {toNepaliDigits(bs.year)}
+        </button>
+        <button
+          type="button"
+          onClick={goToNextMonth}
+          className="inline-flex size-6 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+          aria-label="Next BS month"
+        >
+          <ChevronRightIcon className="size-3.5" />
+        </button>
+      </div>
+      <div className="bg-background rounded-lg p-2">
+        <div className="grid grid-cols-7 gap-1 text-center mb-1">
+          {BS_WEEK_DAYS.map((day) => (
+            <div key={day} className="w-7 h-6 flex items-center justify-center text-[0.65rem] font-medium text-muted-foreground/70">
+              {day}
+            </div>
+          ))}
         </div>
-        <CardDescription>
-          {BS_MONTH_NAMES[bs.month]} {toNepaliDigits(bs.year)} · Today: {toNepaliDigits(today.day)}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3 p-2.5 pt-0">
-        <div className="rounded-lg border bg-background p-2">
-          <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground mb-2">
-            {BS_WEEK_DAYS.map((day) => (
-              <div key={day} className="py-1">
-                {day}
-              </div>
-            ))}
-          </div>
 
-          <div className="grid grid-cols-7 gap-1">
-            {cells.map((cell, index) => {
-              if (cell === null) {
-                return <div key={`empty-${index}`} className="aspect-square rounded-md bg-transparent" />
-              }
+        <div className="grid grid-cols-7 gap-1">
+          {cells.map((cell, index) => {
+            if (cell === null) {
+              return <div key={`empty-${index}`} className="w-7 h-7" />
+            }
 
-              const isToday =
-                today.year === bs.year && today.month === bs.month && today.day === cell
-              const isSelected =
-                selectedParts?.year === bs.year &&
-                selectedParts?.month === bs.month &&
-                selectedParts?.day === cell
-              const holiday = holidays.find(
-                (item) => item.month === bs.month && item.date === cell
-              )
-              const baseClass =
-                "relative isolate z-10 flex aspect-square size-auto w-full min-w-[2.5rem] items-center justify-center border-0 px-1 leading-tight font-medium text-[0.75rem] transition-colors select-none rounded-md"
-              const stateClass =
-                isToday
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : isSelected
-                  ? "bg-primary/15 text-foreground ring-1 ring-primary/25"
-                  : holiday
-                  ? "bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400"
-                  : "bg-background hover:bg-muted/60"
+            const isToday =
+              today.year === bs.year && today.month === bs.month && today.day === cell
+            const isSelected =
+              selectedParts?.year === bs.year &&
+              selectedParts?.month === bs.month &&
+              selectedParts?.day === cell
+            const holiday = holidays.find(
+              (item) => item.month === bs.month && item.date === cell
+            )
+            const baseClass =
+              "w-7 h-7 flex items-center justify-center text-xs font-medium rounded-md cursor-pointer transition-colors select-none"
+            const stateClass =
+              isToday
+                ? "bg-primary/90 text-primary-foreground font-semibold"
+                : isSelected
+                ? "bg-primary/20 text-foreground font-semibold"
+                : holiday
+                ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/15 dark:text-emerald-400"
+                : "text-foreground/80 hover:bg-muted/60"
 
-              const dateSelection = createBsSelection(bs.year, bs.month, cell)
+            const dateSelection = createBsSelection(bs.year, bs.month, cell)
 
-              return (
-                <button
-                  key={cell}
-                  type="button"
-                  className={`${baseClass} ${stateClass}`}
-                  aria-label={`BS date ${cell}`}
-                  onClick={() => onDateSelect?.(dateSelection)}
-                >
-                  {toNepaliDigits(cell)}
-                </button>
-              )
-            })}
-          </div>
+            return (
+              <button
+                key={cell}
+                type="button"
+                className={`${baseClass} ${stateClass}`}
+                aria-label={`BS date ${cell}`}
+                onClick={() => onDateSelect?.(dateSelection)}
+              >
+                {toNepaliDigits(cell)}
+              </button>
+            )
+          })}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

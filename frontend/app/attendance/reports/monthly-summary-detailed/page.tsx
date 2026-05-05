@@ -5,11 +5,12 @@ import { apiClient } from '@/lib/api-client';
 import { useFilters } from '@/hooks/useFilters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { buildCsv, downloadCsv, getRangeDates, triggerPrint } from '@/lib/report-export';
 import { AttendanceReportTabs } from '@/components/attendance-report-tabs';
+import { AttendanceDateFilter } from '@/components/AttendanceDateFilter';
+import { DateFormatBadge } from '@/components/DateDisplay';
 
 function getMonthBounds() {
   const now = new Date();
@@ -21,7 +22,14 @@ function getMonthBounds() {
   };
 }
 
-function formatDayLabel(dateValue: string) {
+function formatDayLabel(dateValue: string, dateFormat: 'ad' | 'bs') {
+  if (dateFormat === 'bs') {
+    return {
+      firstLine: dateValue,
+      secondLine: '',
+    };
+  }
+
   const date = new Date(`${dateValue}T00:00:00`);
   if (Number.isNaN(date.getTime())) {
     return {
@@ -46,36 +54,28 @@ export default function MonthlySummaryDetailedPage() {
 
   const [startDate, setStartDate] = useState(initialBounds.startDate);
   const [endDate, setEndDate] = useState(initialBounds.endDate);
+  const [dateFormat, setDateFormat] = useState<'ad' | 'bs'>('ad');
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const reportDates = useMemo(() => getRangeDates(startDate, endDate), [startDate, endDate]);
+  const reportDates = useMemo(() => getRangeDates(startDate, endDate, dateFormat), [startDate, endDate, dateFormat]);
 
   const reportLabel = useMemo(() => {
-    const start = new Date(`${startDate}T00:00:00`);
-    const end = new Date(`${endDate}T00:00:00`);
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 'Selected dates';
-
-    const formatter = new Intl.DateTimeFormat('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-
-    return `${formatter.format(start)} — ${formatter.format(end)}`;
+    return `${startDate} — ${endDate}`;
   }, [startDate, endDate]);
 
-  async function loadReport() {
+  async function loadReport(nextStart = startDate, nextEnd = endDate, nextFormat = dateFormat) {
     setLoading(true);
     setError(null);
 
     try {
       const res = await apiClient.dashboard.getMonthlySummaryDetailed({
-        startDate,
-        endDate,
+        startDate: nextStart,
+        endDate: nextEnd,
         branchId: selectedBranchId,
         departmentId: selectedDepartmentId,
+        dateFormat: nextFormat,
       });
       setData(res);
     } catch (err) {
@@ -133,14 +133,24 @@ export default function MonthlySummaryDetailedPage() {
         <p className="text-sm text-muted-foreground">Filter any date range and export the report as CSV or PDF.</p>
         <AttendanceReportTabs />
 
-        <div className="flex flex-col gap-3 border rounded-lg p-4 lg:flex-row lg:justify-between">
-          <div className="flex gap-3">
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          </div>
+        <AttendanceDateFilter
+          mode="range"
+          initialDateFormat={dateFormat}
+          initialStartDate={startDate}
+          initialEndDate={endDate}
+          applyLabel="Apply Range"
+          onApply={({ startDate: nextStart, endDate: nextEnd, dateFormat: nextFormat }) => {
+            setStartDate(nextStart);
+            setEndDate(nextEnd);
+            setDateFormat(nextFormat);
+            void loadReport(nextStart, nextEnd, nextFormat);
+          }}
+        />
 
-          <div className="flex gap-2">
-            <Button onClick={loadReport}>Apply</Button>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-background p-4">
+          <DateFormatBadge format={dateFormat} />
+          <span className="text-sm text-muted-foreground">Applied range: {reportLabel}</span>
+          <div className="ml-auto flex gap-2">
             <Button variant="outline" onClick={handleExportCsv} disabled={!data?.rows?.length}>
               Export CSV
             </Button>
@@ -179,7 +189,7 @@ export default function MonthlySummaryDetailedPage() {
                     <TableHead>Employee</TableHead>
 
                     {reportDates.map((d) => {
-                      const { firstLine, secondLine } = formatDayLabel(d);
+                      const { firstLine, secondLine } = formatDayLabel(d, dateFormat);
 
                       return (
                         <TableHead key={d}>

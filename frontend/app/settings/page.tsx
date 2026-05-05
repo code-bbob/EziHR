@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { apiClient, type EnterpriseHierarchyItem } from '@/lib/api-client';
 import { AddDepartmentModal } from '@/components/AddDepartmentModal';
 import { AddEmployeeModal } from '@/components/AddEmployeeModal';
+import { DateFormatPreferences } from '@/components/DateFormatPreferences';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -287,6 +288,12 @@ export default function SettingsPage() {
             </Card>
           ))}
         </div>
+      </section>
+
+      {/* Date Format Preferences Section */}
+      <section className="mb-8">
+        <h2 className="text-2xl font-bold mb-4">Preferences</h2>
+        <DateFormatPreferences />
       </section>
 
       <AddDepartmentModal isOpen={showAddDept} onClose={() => setShowAddDept(false)} onSuccess={() => { setShowAddDept(false); loadData(); }} />

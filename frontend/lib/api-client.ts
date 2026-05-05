@@ -423,6 +423,7 @@ class ApiClient {
       branchId?: number | null;
       departmentId?: number | null;
       employeeId?: number | null;
+      dateFormat?: 'ad' | 'bs';
     }) => {
       const params = new URLSearchParams();
       if (options.startDate) params.append('start_date', options.startDate);
@@ -432,6 +433,7 @@ class ApiClient {
       if (options.branchId) params.append('branch_id', options.branchId.toString());
       if (options.departmentId) params.append('department_id', options.departmentId.toString());
       if (options.employeeId) params.append('employee_id', options.employeeId.toString());
+      if (options.dateFormat) params.append('date_format', options.dateFormat);
       const queryString = params.toString();
       return this.request<any>(`/attendance/api/reports/monthly-summary/${queryString ? `?${queryString}` : ''}`);
     },
@@ -443,6 +445,7 @@ class ApiClient {
       branchId?: number | null;
       departmentId?: number | null;
       employeeId?: number | null;
+      dateFormat?: 'ad' | 'bs';
     }) => {
       const params = new URLSearchParams();
       if (options.startDate) params.append('start_date', options.startDate);
@@ -452,6 +455,7 @@ class ApiClient {
       if (options.branchId) params.append('branch_id', options.branchId.toString());
       if (options.departmentId) params.append('department_id', options.departmentId.toString());
       if (options.employeeId) params.append('employee_id', options.employeeId.toString());
+      if (options.dateFormat) params.append('date_format', options.dateFormat);
       const queryString = params.toString();
       return this.request<any>(`/attendance/api/reports/monthly-summary-detailed/${queryString ? `?${queryString}` : ''}`);
     },
