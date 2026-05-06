@@ -87,8 +87,8 @@ export function NepaliBSCalendar({ selectedDate, onDateSelect }: NepaliBSCalenda
 
   const goToPreviousMonth = React.useCallback(() => {
     setDisplayMonth((current) => {
-      if (current.month === 1) {
-        return { year: current.year - 1, month: 12 }
+      if (current.month === 0) {
+        return { year: current.year - 1, month: 11 }
       }
 
       return { year: current.year, month: current.month - 1 }
@@ -97,8 +97,8 @@ export function NepaliBSCalendar({ selectedDate, onDateSelect }: NepaliBSCalenda
 
   const goToNextMonth = React.useCallback(() => {
     setDisplayMonth((current) => {
-      if (current.month === 12) {
-        return { year: current.year + 1, month: 1 }
+      if (current.month === 11) {
+        return { year: current.year + 1, month: 0 }
       }
 
       return { year: current.year, month: current.month + 1 }
