@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { buildCsv, downloadCsv, getRangeDates, triggerPrint } from '@/lib/report-export';
 import { AttendanceReportTabs } from '@/components/attendance-report-tabs';
-import { AttendanceDateFilter } from '@/components/AttendanceDateFilter';
+import { Input } from '@/components/ui/input';
 import { getDateFormatPreference } from '@/hooks/use-date-format';
 
 function getMonthBounds() {
@@ -133,27 +133,30 @@ export default function MonthlySummaryDetailedPage() {
         <p className="text-sm text-muted-foreground">Filter any date range and export the report as CSV or PDF.</p>
         <AttendanceReportTabs />
 
-        <AttendanceDateFilter
-          mode="range"
-          initialDateFormat={dateFormat}
-          initialStartDate={startDate}
-          initialEndDate={endDate}
-          applyLabel="Apply Range"
-          onApply={({ startDate: nextStart, endDate: nextEnd, dateFormat: nextFormat }) => {
-            setStartDate(nextStart);
-            setEndDate(nextEnd);
-            setDateFormat(nextFormat);
-            void loadReport(nextStart, nextEnd, nextFormat);
-          }}
-        />
-
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" className="rounded-full px-6" onClick={handleExportCsv} disabled={!data?.rows?.length}>
-            Export CSV
-          </Button>
-          <Button variant="outline" className="rounded-full px-6" onClick={triggerPrint} disabled={!data?.rows?.length}>
-            Export PDF
-          </Button>
+        <div className="flex flex-wrap items-center gap-4 py-2 mt-2">
+          <Input 
+            type="date" 
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-auto rounded-full bg-white px-4 h-10 border-border/60"
+          />
+          <Input 
+            type="date" 
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+            className="w-auto rounded-full bg-white px-4 h-10 border-border/60"
+          />
+          <div className="ml-auto flex gap-2">
+            <Button variant="default" className="rounded-full bg-zinc-900 px-6 hover:bg-zinc-800 text-white" onClick={() => loadReport()}>
+              Apply
+            </Button>
+            <Button variant="outline" className="rounded-full px-6" onClick={handleExportCsv} disabled={!data?.rows?.length}>
+              Export CSV
+            </Button>
+            <Button variant="outline" className="rounded-full px-6" onClick={triggerPrint} disabled={!data?.rows?.length}>
+              Export PDF
+            </Button>
+          </div>
         </div>
       </div>
 
