@@ -282,6 +282,18 @@ def rebuild_daily_attendance_summary(employee: Employee, attendance_date) -> Dai
     if events:
         summary.last_event_type = events[-1].event_type
         summary.last_event_time = events[-1].event_time
+    # Ensure BS fields are populated based on the attendance_date
+    try:
+        from .date_utils import ad_to_bs
+
+        y, m, d = ad_to_bs(summary.attendance_date)
+        from datetime import date as _date
+
+        summary.attendance_date_bs = _date(int(y), int(m), int(d))
+    except Exception:
+        # ignore conversion errors; leave defaults
+        pass
+
     summary.save()
     return summary
 
@@ -318,6 +330,7 @@ def record_device_event(
             'event_type': int(event_type),
             'event_time': event_time.isoformat(),
             'attendance_date': str(summary.attendance_date),
+            'attendance_date_bs': str(summary.attendance_date_bs) if summary.attendance_date_bs else None,
             'first_check_in': summary.first_check_in.isoformat() if summary.first_check_in else None,
             'last_check_out': summary.last_check_out.isoformat() if summary.last_check_out else None,
             'worked_minutes': int(summary.worked_minutes or 0),

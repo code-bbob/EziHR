@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { apiClient, type EnterpriseHierarchyItem } from '@/lib/api-client';
+import { getDateFormatPreference } from '@/hooks/use-date-format';
 
 interface EmployeeDetail {
   id: number;
@@ -89,6 +90,7 @@ export default function StaffDetailPage() {
   const searchParams = useSearchParams();
   const staffId = Number(params.id);
   const monthBounds = useMemo(() => getCurrentMonthBounds(), []);
+  const [dateFormat] = useState(() => getDateFormatPreference());
   const editRequested = searchParams.get('edit') === '1';
 
   const [employee, setEmployee] = useState<EmployeeDetail | null>(null);
@@ -166,6 +168,7 @@ export default function StaffDetailPage() {
         startDate: reportStartDate,
         endDate: reportEndDate,
         employeeId: staffId,
+        dateFormat,
       });
       setAttendanceReport(response as MonthlyAttendanceReport);
     } catch (err) {
@@ -174,7 +177,7 @@ export default function StaffDetailPage() {
     } finally {
       setAttendanceLoading(false);
     }
-  }, [reportStartDate, reportEndDate, staffId]);
+  }, [dateFormat, reportStartDate, reportEndDate, staffId]);
 
   useEffect(() => {
     const loadStaffDetails = async () => {

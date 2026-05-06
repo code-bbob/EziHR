@@ -50,6 +50,19 @@ export function AdCalendar({ selectedDate, onDateSelect }: AdCalendarProps) {
     month: selectedDate ? parseDateString(selectedDate).month : today.month,
   }))
 
+  // Sync the displayed month/year whenever the selectedDate prop changes
+  // (e.g. switching from BS→AD causes the parent to pass a new AD date string)
+  React.useEffect(() => {
+    if (selectedDate) {
+      const parsed = parseDateString(selectedDate)
+      if (Number.isFinite(parsed.year) && Number.isFinite(parsed.month)) {
+        setDisplayMonth({ year: parsed.year, month: parsed.month })
+      }
+    } else {
+      setDisplayMonth({ year: today.year, month: today.month })
+    }
+  }, [selectedDate, today.year, today.month])
+
   const { year, month, cells } = React.useMemo(
     () => createAdMonthGrid(new Date(displayMonth.year, displayMonth.month, 1)),
     [displayMonth]

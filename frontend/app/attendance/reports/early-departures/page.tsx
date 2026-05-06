@@ -29,12 +29,12 @@ export default function EarlyDeparturesReport() {
 
   const reportLabel = useMemo(() => attendanceDate, [attendanceDate]);
 
-  const loadReport = useCallback(async (nextDate = attendanceDate) => {
+  const loadReport = useCallback(async (nextDate = attendanceDate, nextFormat = dateFormat) => {
     setLoading(true);
     setError(null);
 
     try {
-      const res = await apiClient.dashboard.getEarlyDepartures(selectedBranchId, selectedDepartmentId, nextDate);
+      const res = await apiClient.dashboard.getEarlyDepartures(selectedBranchId, selectedDepartmentId, nextDate, nextFormat);
       setData(res);
     } catch (err) {
       console.error(err);
@@ -43,7 +43,7 @@ export default function EarlyDeparturesReport() {
     } finally {
       setLoading(false);
     }
-  }, [attendanceDate, selectedBranchId, selectedDepartmentId]);
+  }, [attendanceDate, dateFormat, selectedBranchId, selectedDepartmentId]);
 
   useEffect(() => {
     loadReport();
@@ -67,7 +67,7 @@ export default function EarlyDeparturesReport() {
           onApply={({ startDate: nextDate, dateFormat: nextFormat }) => {
             setAttendanceDate(nextDate);
             setDateFormat(nextFormat);
-            void loadReport(nextDate);
+            void loadReport(nextDate, nextFormat);
           }}
         />
 

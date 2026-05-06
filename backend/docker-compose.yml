@@ -17,7 +17,7 @@ services:
       LETSENCRYPT_EMAIL: bibhab.dev@gmail.com
 
       # Database Connection
-      DB_HOST: global-db
+      DB_HOST: 192.168.1.155
       DB_PORT: 5432
       DB_NAME: ${POSTGRES_DB}
       DB_USER: ${POSTGRES_USER}

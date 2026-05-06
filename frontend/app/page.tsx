@@ -9,6 +9,7 @@ import { AddEmployeeModal } from '@/components/AddEmployeeModal';
 import { AddDepartmentModal } from '@/components/AddDepartmentModal';
 import { useFilters } from '@/hooks/useFilters';
 import { useRightSidebar } from '@/hooks/useRightSidebar';
+import { getDateFormatPreference } from '@/hooks/use-date-format';
 
 // shadcn UI Components
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,6 +30,7 @@ type HierarchicalViewData = HierarchicalDashboardData | BranchDashboardData | De
 export default function HomePage() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const router = useRouter();
+  const [dateFormat] = useState(() => getDateFormatPreference());
   const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
   const [showAddDepartmentModal, setShowAddDepartmentModal] = useState(false);
   const { isOpen: isRightSidebarOpen, toggle: toggleRightSidebar } = useRightSidebar();
@@ -57,7 +59,7 @@ export default function HomePage() {
   };
   
   const { data, loading, error, refetch } = useApi<DashboardData>(
-    () => apiClient.dashboard.getAttendance()
+    () => apiClient.dashboard.getAttendance(undefined, undefined, dateFormat)
   );
 
   useEffect(() => {
@@ -211,8 +213,8 @@ export default function HomePage() {
       try {
         setLateEarlyLoading(true);
         const [late, early] = await Promise.all([
-          apiClient.dashboard.getLateArrivals(hierarchicalSelectedBranchId, hierarchicalSelectedDepartmentId),
-          apiClient.dashboard.getEarlyDepartures(hierarchicalSelectedBranchId, hierarchicalSelectedDepartmentId),
+          apiClient.dashboard.getLateArrivals(hierarchicalSelectedBranchId, hierarchicalSelectedDepartmentId, null, dateFormat),
+          apiClient.dashboard.getEarlyDepartures(hierarchicalSelectedBranchId, hierarchicalSelectedDepartmentId, null, dateFormat),
         ]);
 
         if (cancelled) return;
@@ -233,7 +235,7 @@ export default function HomePage() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, hierarchicalSelectedBranchId, hierarchicalSelectedDepartmentId]);
+  }, [isAuthenticated, dateFormat, hierarchicalSelectedBranchId, hierarchicalSelectedDepartmentId]);
 
   const handleEmployeeCreated = () => {
     setShowAddEmployeeModal(false);

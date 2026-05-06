@@ -1,9 +1,11 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
+from datetime import datetime
 from rest_framework.test import APIClient
 
 from attendance.models import AttendanceEvent, DailyAttendance
+from attendance.date_utils import ad_to_bs, format_bs_date
 from attendance.services import build_dashboard_rows, record_device_event
 from enterprise.models import Employee, Enterprise, Branch
 from device.models import BiometricDevice, EmployeeBiometricMapping
@@ -98,6 +100,43 @@ class AttendanceAggregationTests(TestCase):
         self.assertEqual(response.content.decode().strip(), 'OK')
         self.assertEqual(AttendanceEvent.objects.count(), 1)
         self.assertEqual(DailyAttendance.objects.count(), 1)
+
+    def test_daily_response_includes_bs_date_fields(self):
+        base_time = timezone.now().replace(hour=9, minute=0, second=0, microsecond=0)
+        record_device_event(self.employee, AttendanceEvent.CHECK_IN, base_time)
+
+        response = self.client.get('/attendance/api/daily/')
+        self.assertEqual(response.status_code, 200)
+
+        payload = response.json()
+        bs_year, bs_month, bs_day = ad_to_bs(timezone.localdate(base_time))
+        expected_bs = format_bs_date(bs_year, bs_month, bs_day)
+
+        self.assertEqual(payload['attendance_date_ad'], str(timezone.localdate(base_time)))
+        self.assertEqual(payload['attendance_date_bs'], expected_bs)
+
+        row = payload['attendance_rows'][0]
+        self.assertEqual(row['summary']['attendance_date_ad'], str(timezone.localdate(base_time)))
+        self.assertEqual(row['summary']['attendance_date_bs'], expected_bs)
+
+    def test_monthly_summary_accepts_bs_dates_when_date_format_is_bs(self):
+        base_time = timezone.make_aware(datetime(2026, 5, 5, 9, 0, 0), timezone.get_current_timezone())
+        record_device_event(self.employee, AttendanceEvent.CHECK_IN, base_time)
+
+        bs_year, bs_month, bs_day = ad_to_bs(base_time.date())
+        bs_date = format_bs_date(bs_year, bs_month, bs_day)
+
+        response = self.client.get(
+            '/attendance/api/reports/monthly-summary/',
+            {'start_date': bs_date, 'end_date': bs_date, 'dateFormat': 'bs'},
+        )
+        self.assertEqual(response.status_code, 200)
+
+        payload = response.json()
+        self.assertEqual(payload['start_date'], str(base_time.date()))
+        self.assertEqual(payload['end_date'], str(base_time.date()))
+        self.assertEqual(payload['start_date_bs'], bs_date)
+        self.assertEqual(payload['end_date_bs'], bs_date)
 
     def test_iclock_cdata_uses_device_specific_employee_mapping(self):
         enterprise = Enterprise.objects.create(name='Acme')

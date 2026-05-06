@@ -5,8 +5,6 @@ This module provides functions to convert between Nepali (BS) and English (AD) c
 """
 
 from datetime import date, datetime, timedelta
-from typing import Union, Tuple
-
 
 # Nepali date range mapping (year, month, day) to Gregorian date
 # This data is derived from official nepali calendar conversion tables
@@ -54,6 +52,18 @@ NEPALI_EPOCH_BS_MONTH = 1
 NEPALI_EPOCH_BS_DAY = 1
 
 
+from typing import Union, Tuple
+
+
+# Prefer the external `nepali_date_utils` package for conversion if available.
+try:
+    from nepali_date_utils import converter as _ndu_converter
+    _HAS_NEPALI_CONVERTER = True
+except Exception:
+    _ndu_converter = None
+    _HAS_NEPALI_CONVERTER = False
+
+
 def get_nepali_month_days(nepali_year: int, nepali_month: int) -> int:
     """Get number of days in a Nepali month."""
     if nepali_year not in NEPALI_MONTH_DAYS:
@@ -77,31 +87,46 @@ def ad_to_bs(gregorian_date: Union[date, datetime]) -> Tuple[int, int, int]:
         >>> ad_to_bs(date(2023, 5, 15))
         (2080, 2, 1)
     """
+    # Try external converter first (more up-to-date/accurate)
+    if _HAS_NEPALI_CONVERTER:
+        try:
+            if isinstance(gregorian_date, datetime):
+                gregorian_date = gregorian_date.date()
+            s = gregorian_date.strftime('%Y/%m/%d')
+            res = _ndu_converter.ad_to_bs(s)
+            # Normalise separators and parse
+            res = str(res).replace('-', '/')
+            y, m, d = res.split('/')
+            return int(y), int(m), int(d)
+        except Exception:
+            # Fall back to internal implementation on any error
+            pass
+
     if isinstance(gregorian_date, datetime):
         gregorian_date = gregorian_date.date()
-    
-    # Calculate days from epoch
+
+    # Calculate days from epoch (internal fallback)
     delta_days = (gregorian_date - NEPALI_EPOCH_AD).days
-    
+
     # Start from epoch
     nepali_year = NEPALI_EPOCH_BS_YEAR
     nepali_month = NEPALI_EPOCH_BS_MONTH
     nepali_day = NEPALI_EPOCH_BS_DAY
-    
+
     # Add the days
     days_to_add = delta_days
-    
+
     while days_to_add > 0:
         # Get days in current month
         days_in_month = get_nepali_month_days(nepali_year, nepali_month)
         days_left_in_month = days_in_month - nepali_day + 1
-        
+
         if days_to_add >= days_left_in_month:
             # Move to next month
             days_to_add -= days_left_in_month
             nepali_day = 1
             nepali_month += 1
-            
+
             if nepali_month > 12:
                 nepali_month = 1
                 nepali_year += 1
@@ -109,7 +134,7 @@ def ad_to_bs(gregorian_date: Union[date, datetime]) -> Tuple[int, int, int]:
             # Add days to current month
             nepali_day += days_to_add
             days_to_add = 0
-    
+
     return nepali_year, nepali_month, nepali_day
 
 
@@ -129,21 +154,33 @@ def bs_to_ad(nepali_year: int, nepali_month: int, nepali_day: int) -> date:
         >>> bs_to_ad(2080, 2, 1)
         datetime.date(2023, 5, 15)
     """
-    # Calculate days from Nepali epoch
+    # Try external converter first
+    if _HAS_NEPALI_CONVERTER:
+        try:
+            s = f"{int(nepali_year)}/{int(nepali_month)}/{int(nepali_day)}"
+            res = _ndu_converter.bs_to_ad(s)
+            res = str(res).replace('-', '/')
+            # Expect YYYY/MM/DD
+            return datetime.strptime(res, '%Y/%m/%d').date()
+        except Exception:
+            # Fall back to internal implementation on any error
+            pass
+
+    # Internal fallback calculation
     days = 0
-    
+
     # Add days for complete years
     for year in range(NEPALI_EPOCH_BS_YEAR, nepali_year):
         for month in range(1, 13):
             days += get_nepali_month_days(year, month)
-    
+
     # Add days for complete months in current year
     for month in range(1, nepali_month):
         days += get_nepali_month_days(nepali_year, month)
-    
+
     # Add days in current month
     days += nepali_day - 1
-    
+
     # Calculate Gregorian date
     gregorian_date = NEPALI_EPOCH_AD + timedelta(days=days)
     return gregorian_date

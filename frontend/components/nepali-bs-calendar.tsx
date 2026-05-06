@@ -62,6 +62,19 @@ export function NepaliBSCalendar({ selectedDate, onDateSelect }: NepaliBSCalenda
     month: selectedDate ? parseDateString(selectedDate).month : today.month,
   }))
 
+  // Sync the displayed month/year whenever the selectedDate prop changes
+  // (e.g. switching from AD→BS causes the parent to pass a new BS date string)
+  React.useEffect(() => {
+    if (selectedDate) {
+      const parsed = parseDateString(selectedDate)
+      if (Number.isFinite(parsed.year) && Number.isFinite(parsed.month)) {
+        setDisplayMonth({ year: parsed.year, month: parsed.month })
+      }
+    } else {
+      setDisplayMonth({ year: today.year, month: today.month })
+    }
+  }, [selectedDate, today.year, today.month])
+
   const { bs, cells } = React.useMemo(
     () => createBsMonthGrid({ ...today, year: displayMonth.year, month: displayMonth.month }),
     [displayMonth.month, displayMonth.year, today]

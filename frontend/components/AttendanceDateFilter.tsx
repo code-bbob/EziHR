@@ -8,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { AdCalendar } from '@/components/ad-calendar';
 import { NepaliBSCalendar } from '@/components/nepali-bs-calendar';
 import { getDateFormatPreference, setDateFormatPreference, type DateFormat } from '@/hooks/use-date-format';
-import { createAdSelection, getInitialCalendarSelection, parseDateString, type CalendarSelection } from '@/lib/calendar-sync';
+import { createAdSelection, createBsSelection, getInitialCalendarSelection, parseDateString, type CalendarSelection } from '@/lib/calendar-sync';
 import { cn } from '@/lib/utils';
 
 type FilterMode = 'single' | 'range';
@@ -31,7 +31,7 @@ interface AttendanceDateFilterProps {
   onApply: (payload: ApplyPayload) => void;
 }
 
-function selectionFromIso(dateValue?: string): CalendarSelection {
+function selectionFromDate(dateValue: string | undefined, format: 'ad' | 'bs'): CalendarSelection {
   if (!dateValue) {
     return getInitialCalendarSelection();
   }
@@ -41,7 +41,9 @@ function selectionFromIso(dateValue?: string): CalendarSelection {
     return getInitialCalendarSelection();
   }
 
-  return createAdSelection(parsed.year, parsed.month, parsed.day);
+  return format === 'bs'
+    ? createBsSelection(parsed.year, parsed.month, parsed.day)
+    : createAdSelection(parsed.year, parsed.month, parsed.day);
 }
 
 function currentValue(selection: CalendarSelection, dateFormat: DateFormat) {
@@ -115,28 +117,15 @@ export function AttendanceDateFilter({
 }: AttendanceDateFilterProps) {
   const defaultFormat = initialDateFormat ?? getDateFormatPreference();
   const [dateFormat, setDateFormat] = useState<DateFormat>(defaultFormat);
-  const [singleSelection, setSingleSelection] = useState<CalendarSelection>(() => selectionFromIso(initialDate));
-  const [startSelection, setStartSelection] = useState<CalendarSelection>(() => selectionFromIso(initialStartDate));
-  const [endSelection, setEndSelection] = useState<CalendarSelection>(() => selectionFromIso(initialEndDate));
+  const [singleSelection, setSingleSelection] = useState<CalendarSelection>(() => selectionFromDate(initialDate, 'ad'));
+  const [startSelection, setStartSelection] = useState<CalendarSelection>(() => selectionFromDate(initialStartDate, 'ad'));
+  const [endSelection, setEndSelection] = useState<CalendarSelection>(() => selectionFromDate(initialEndDate, 'ad'));
 
   useEffect(() => {
     if (initialDateFormat) {
       setDateFormat(initialDateFormat);
     }
   }, [initialDateFormat]);
-
-  useEffect(() => {
-    if (mode === 'single' && initialDate) {
-      setSingleSelection(selectionFromIso(initialDate));
-    }
-  }, [initialDate, mode]);
-
-  useEffect(() => {
-    if (mode === 'range') {
-      if (initialStartDate) setStartSelection(selectionFromIso(initialStartDate));
-      if (initialEndDate) setEndSelection(selectionFromIso(initialEndDate));
-    }
-  }, [initialStartDate, initialEndDate, mode]);
 
   const isSingle = mode === 'single';
 

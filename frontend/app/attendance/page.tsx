@@ -6,6 +6,7 @@ import { useApi } from '@/lib/hooks/useApi';
 import { apiClient, type DashboardData } from '@/lib/api-client';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useFilters } from '@/hooks/useFilters';
+import { getDateFormatPreference } from '@/hooks/use-date-format';
 
 // shadcn UI Components
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -90,6 +91,7 @@ const applyBreakEventToSessions = (
 function AttendanceContent() {
   const { loading: authLoading, isAuthenticated } = useAuth();
   const router = useRouter();
+  const [dateFormat] = useState(() => getDateFormatPreference());
 
   const { 
     selectedBranchId, 
@@ -99,8 +101,8 @@ function AttendanceContent() {
   } = useFilters();
 
   const { data, loading } = useApi<DashboardData>(
-    () => apiClient.dashboard.getAttendance(selectedBranchId, selectedDepartmentId),
-    [selectedBranchId, selectedDepartmentId]
+    () => apiClient.dashboard.getAttendance(selectedBranchId, selectedDepartmentId, dateFormat),
+    [selectedBranchId, selectedDepartmentId, dateFormat]
   );
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -218,6 +220,7 @@ function AttendanceContent() {
         const params = new URLSearchParams();
         if (selectedBranchId) params.append('branch_id', String(selectedBranchId));
         if (selectedDepartmentId) params.append('department_id', String(selectedDepartmentId));
+        params.append('date_format', dateFormat);
         params.append('page', String(currentPage));
 
         const queryString = params.toString();
@@ -243,7 +246,7 @@ function AttendanceContent() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, selectedBranchId, selectedDepartmentId, currentPage, showAll]);
+  }, [isAuthenticated, dateFormat, selectedBranchId, selectedDepartmentId, currentPage, showAll]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -292,7 +295,7 @@ function AttendanceContent() {
     return () => {
       if (es) es.close();
     };
-  }, [isAuthenticated, showAll]);
+  }, [isAuthenticated, dateFormat, showAll]);
 
   const handleShowAll = async () => {
     try {
@@ -300,6 +303,7 @@ function AttendanceContent() {
       const params = new URLSearchParams();
       if (selectedBranchId) params.append('branch_id', String(selectedBranchId));
       if (selectedDepartmentId) params.append('department_id', String(selectedDepartmentId));
+      params.append('date_format', dateFormat);
 
       const baseQuery = params.toString();
       let page = 1;

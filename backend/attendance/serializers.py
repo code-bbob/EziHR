@@ -20,6 +20,8 @@ class DailyAttendanceSerializer(serializers.ModelSerializer):
     employee_name = serializers.CharField(source='employee.name', read_only=True)
     employee_code = serializers.CharField(source='employee.employee_code', read_only=True)
     worked_hours = serializers.SerializerMethodField()
+    attendance_date_ad = serializers.SerializerMethodField()
+    attendance_date_bs = serializers.SerializerMethodField()
     # Lateness / early departure derived from enterprise schedule
     late_seconds = serializers.SerializerMethodField()
     early_seconds = serializers.SerializerMethodField()
@@ -32,6 +34,7 @@ class DailyAttendanceSerializer(serializers.ModelSerializer):
         model = DailyAttendance
         fields = [
             'id', 'employee', 'employee_name', 'employee_code', 'attendance_date',
+            'attendance_date_ad', 'attendance_date_bs',
             'first_check_in', 'last_check_out',
             'first_ot_in', 'last_ot_out', 'worked_minutes', 'worked_hours',
             'present', 'last_event_type', 'last_event_time', 'updated_at',
@@ -43,6 +46,23 @@ class DailyAttendanceSerializer(serializers.ModelSerializer):
     def get_worked_hours(self, obj):
         """Return worked time as hours (float)"""
         return round(obj.worked_minutes / 60, 2)
+
+    def get_attendance_date_ad(self, obj):
+        try:
+            return obj.attendance_date_ad
+        except Exception:
+            return None
+
+    def get_attendance_date_bs(self, obj):
+        try:
+            if obj.attendance_date_bs:
+                return str(obj.attendance_date_bs)
+            from .date_utils import ad_to_bs, format_bs_date
+
+            year, month, day = ad_to_bs(obj.attendance_date)
+            return format_bs_date(year, month, day)
+        except Exception:
+            return None
 
     def _get_schedule_datetimes(self, obj):
         from datetime import datetime as _dt, time as _time

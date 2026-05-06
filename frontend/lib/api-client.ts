@@ -391,26 +391,29 @@ class ApiClient {
 
   // Dashboard endpoints
   dashboard = {
-    getAttendance: (branchId?: number | null, departmentId?: number | null) => {
+    getAttendance: (branchId?: number | null, departmentId?: number | null, dateFormat?: 'ad' | 'bs') => {
       const params = new URLSearchParams();
       if (branchId) params.append('branch_id', branchId.toString());
       if (departmentId) params.append('department_id', departmentId.toString());
+      if (dateFormat) params.append('date_format', dateFormat);
       const queryString = params.toString();
       return this.request<DashboardData>(`/attendance/api/daily/${queryString ? `?${queryString}` : ''}`);
     },
-    getLateArrivals: (branchId?: number | null, departmentId?: number | null, attendanceDate?: string | null) => {
+    getLateArrivals: (branchId?: number | null, departmentId?: number | null, attendanceDate?: string | null, dateFormat?: 'ad' | 'bs') => {
       const params = new URLSearchParams();
       if (branchId) params.append('branch_id', branchId.toString());
       if (departmentId) params.append('department_id', departmentId.toString());
       if (attendanceDate) params.append('attendance_date', attendanceDate);
+      if (dateFormat) params.append('date_format', dateFormat);
       const queryString = params.toString();
       return this.request<LateArrivalsData>(`/attendance/api/dashboard/late-arrivals/${queryString ? `?${queryString}` : ''}`);
     },
-    getEarlyDepartures: (branchId?: number | null, departmentId?: number | null, attendanceDate?: string | null) => {
+    getEarlyDepartures: (branchId?: number | null, departmentId?: number | null, attendanceDate?: string | null, dateFormat?: 'ad' | 'bs') => {
       const params = new URLSearchParams();
       if (branchId) params.append('branch_id', branchId.toString());
       if (departmentId) params.append('department_id', departmentId.toString());
       if (attendanceDate) params.append('attendance_date', attendanceDate);
+      if (dateFormat) params.append('date_format', dateFormat);
       const queryString = params.toString();
       return this.request<EarlyDeparturesData>(`/attendance/api/dashboard/early-departures/${queryString ? `?${queryString}` : ''}`);
     },

@@ -73,6 +73,39 @@ def _dt_iso(value):
         return None
 
 
+def _format_ad_bs(a_date):
+    """Return tuple (ad_str, bs_str) for a date object."""
+    try:
+        ad = str(a_date)
+    except Exception:
+        ad = None
+    try:
+        from .date_utils import ad_to_bs, format_bs_date
+
+        y, m, d = ad_to_bs(a_date)
+        bs = format_bs_date(y, m, d)
+    except Exception:
+        bs = None
+    return ad, bs
+
+
+def _get_requested_date_format(request: HttpRequest) -> str | None:
+    """Return the date format the frontend indicated for the request.
+
+    Returns 'bs' if the frontend sent `dateFormat=bs` (or `date_format=bs`),
+    'ad' if the frontend provided a date but did not declare BS, or None if
+    no date-related parameter was supplied.
+    """
+    df = request.query_params.get('dateFormat') or request.query_params.get('date_format')
+    if df:
+        return str(df).lower()
+
+    # If a date filter was provided but no format flag, assume AD
+    if any(k in request.query_params for k in ('attendance_date', 'start_date', 'end_date', 'year', 'month')):
+        return 'ad'
+    return None
+
+
 def _serialize_employee_min(employee):
     if employee is None:
         return None
@@ -92,6 +125,8 @@ def _serialize_summary_min(summary):
         'id': summary.id,
         'employee': summary.employee_id,
         'attendance_date': str(summary.attendance_date),
+        'attendance_date_ad': getattr(summary, 'attendance_date_ad', str(summary.attendance_date)),
+        'attendance_date_bs': str(getattr(summary, 'attendance_date_bs', None)) if getattr(summary, 'attendance_date_bs', None) else None,
         'first_check_in': _dt_iso(summary.first_check_in),
         'last_check_out': _dt_iso(summary.last_check_out),
         'worked_minutes': worked_minutes,
@@ -175,6 +210,8 @@ class DashboardAPIView(APIView):
         return Response({
             'attendance_rows': serialized_rows,
             'attendance_date': str(timezone.localdate()),
+            'attendance_date_ad': _format_ad_bs(timezone.localdate())[0],
+            'attendance_date_bs': _format_ad_bs(timezone.localdate())[1],
             'stats': build_dashboard_stats_fast(
                 attendance_date=timezone.localdate(),
                 branch_id=branch_id,
@@ -229,6 +266,8 @@ class AttendanceRowsAPIView(APIView):
         return Response({
             'attendance_rows': serialized_rows,
             'attendance_date': str(timezone.localdate()),
+            'attendance_date_ad': _format_ad_bs(timezone.localdate())[0],
+            'attendance_date_bs': _format_ad_bs(timezone.localdate())[1],
             'count': paginator.page.paginator.count,
             'pagination': {
                 'next': paginator.get_next_link(),
@@ -268,6 +307,8 @@ class DashboardStatsAPIView(APIView):
         )
         return Response({
             'attendance_date': str(timezone.localdate()),
+            'attendance_date_ad': _format_ad_bs(timezone.localdate())[0],
+            'attendance_date_bs': _format_ad_bs(timezone.localdate())[1],
             'stats': stats,
         })
 
@@ -293,6 +334,8 @@ class HierarchicalDashboardAPIView(APIView):
         response_payload = {
             'enterprise': self._build_enterprise_view(enterprise, attendance_date, dashboard_context),
             'attendance_date': str(attendance_date),
+            'attendance_date_ad': _format_ad_bs(attendance_date)[0],
+            'attendance_date_bs': _format_ad_bs(attendance_date)[1],
         }
         cache.set(cache_key, response_payload, timeout=15)
         return Response(response_payload)
@@ -459,6 +502,8 @@ class BranchDashboardAPIView(APIView):
                 ]
             },
             'attendance_date': str(attendance_date),
+            'attendance_date_ad': _format_ad_bs(attendance_date)[0],
+            'attendance_date_bs': _format_ad_bs(attendance_date)[1],
         })
 
 
@@ -496,6 +541,8 @@ class DepartmentDashboardAPIView(APIView):
                 ]
             },
             'attendance_date': str(attendance_date),
+            'attendance_date_ad': _format_ad_bs(attendance_date)[0],
+            'attendance_date_bs': _format_ad_bs(attendance_date)[1],
         }
         
         if department.branch:
@@ -782,13 +829,11 @@ class LateArrivalsAPIView(APIView):
         if enterprise is None:
             return Response({'error': 'No enterprise found for this user'}, status=403)
 
-        attendance_date = request.query_params.get('attendance_date')
-        if attendance_date:
-            from datetime import datetime as _dt
-            try:
-                attendance_date = _dt.strptime(attendance_date, '%Y-%m-%d').date()
-            except (ValueError, TypeError):
-                attendance_date = None
+        # Support both AD and BS date inputs. The frontend should send
+        # `dateFormat=bs` when providing Nepali (Bikram Sambat) dates so
+        # the backend can convert them to AD for querying.
+        date_format = request.query_params.get('dateFormat') or request.query_params.get('date_format')
+        attendance_date = _parse_date_param(request.query_params.get('attendance_date'), date_format=date_format)
 
         branch_id = _parse_optional_int(request.query_params.get('branch_id'))
         department_id = _parse_optional_int(request.query_params.get('department_id'))
@@ -825,10 +870,15 @@ class LateArrivalsAPIView(APIView):
                 'late_minutes': round(arrival.get('late_seconds', 0) / 60, 1),
             })
 
+        requested_format = _get_requested_date_format(request)
+
         return Response({
             'late_arrivals': serialized,
             'count': paginator.page.paginator.count,
             'attendance_date': str(attendance_date or timezone.localdate()),
+            'attendance_date_ad': _format_ad_bs(attendance_date or timezone.localdate())[0],
+            'attendance_date_bs': _format_ad_bs(attendance_date or timezone.localdate())[1],
+            'requested_date_format': requested_format,
             'pagination': {
                 'next': paginator.get_next_link(),
                 'previous': paginator.get_previous_link(),
@@ -854,13 +904,11 @@ class EarlyDeparturesAPIView(APIView):
         if enterprise is None:
             return Response({'error': 'No enterprise found for this user'}, status=403)
 
-        attendance_date = request.query_params.get('attendance_date')
-        if attendance_date:
-            from datetime import datetime as _dt
-            try:
-                attendance_date = _dt.strptime(attendance_date, '%Y-%m-%d').date()
-            except (ValueError, TypeError):
-                attendance_date = None
+        # Support both AD and BS date inputs. The frontend should send
+        # `dateFormat=bs` when providing Nepali (Bikram Sambat) dates so
+        # the backend can convert them to AD for querying.
+        date_format = request.query_params.get('dateFormat') or request.query_params.get('date_format')
+        attendance_date = _parse_date_param(request.query_params.get('attendance_date'), date_format=date_format)
 
         branch_id = _parse_optional_int(request.query_params.get('branch_id'))
         department_id = _parse_optional_int(request.query_params.get('department_id'))
@@ -897,10 +945,15 @@ class EarlyDeparturesAPIView(APIView):
                 'early_minutes': round(departure.get('early_seconds', 0) / 60, 1),
             })
 
+        requested_format = _get_requested_date_format(request)
+
         return Response({
             'early_departures': serialized,
             'count': paginator.page.paginator.count,
             'attendance_date': str(attendance_date or timezone.localdate()),
+            'attendance_date_ad': _format_ad_bs(attendance_date or timezone.localdate())[0],
+            'attendance_date_bs': _format_ad_bs(attendance_date or timezone.localdate())[1],
+            'requested_date_format': requested_format,
             'pagination': {
                 'next': paginator.get_next_link(),
                 'previous': paginator.get_previous_link(),
@@ -910,27 +963,46 @@ class EarlyDeparturesAPIView(APIView):
         })
 
 
-def _parse_date_param(value: str | None):
+def _parse_date_param(value: str | None, *, date_format: str | None = None):
     if not value:
         return None
+
+    if date_format == 'bs':
+        try:
+            from .date_utils import parse_nepali_date_string, bs_to_ad
+
+            normalized = value.replace('/', '-')
+            y, m, d = parse_nepali_date_string(normalized)
+            return bs_to_ad(y, m, d)
+        except Exception:
+            return None
+
+    # Try AD formats first
     for fmt in ('%Y-%m-%d', '%Y/%m/%d'):
         try:
             return datetime.strptime(value, fmt).date()
         except (TypeError, ValueError):
             continue
+
     return None
 
 
 def _resolve_report_range(request: HttpRequest):
-    start_date = _parse_date_param(request.query_params.get('start_date'))
-    end_date = _parse_date_param(request.query_params.get('end_date'))
+    date_format = request.query_params.get('dateFormat') or request.query_params.get('date_format')
+    start_date = _parse_date_param(request.query_params.get('start_date'), date_format=date_format)
+    end_date = _parse_date_param(request.query_params.get('end_date'), date_format=date_format)
+
+    meta = {}
+    # Record the requested date format so callers / responses can echo it back
+    meta['requested_date_format'] = str(date_format).lower() if date_format else ('ad' if (start_date or end_date or request.query_params.get('year') or request.query_params.get('month')) else None)
 
     if start_date or end_date:
         start_date = start_date or end_date or timezone.localdate()
         end_date = end_date or start_date
         if start_date > end_date:
             return None, None, {'error': 'start_date must be before or equal to end_date'}
-        return start_date, end_date, {'mode': 'range'}
+        meta['mode'] = 'range'
+        return start_date, end_date, meta
 
     year = request.query_params.get('year')
     month = request.query_params.get('month')
@@ -947,7 +1019,10 @@ def _resolve_report_range(request: HttpRequest):
         return None, None, {'error': 'Invalid year or month'}
 
     _, last_day = calendar.monthrange(year, month)
-    return date(year, month, 1), date(year, month, last_day), {'mode': 'month', 'year': year, 'month': month}
+    meta['mode'] = 'month'
+    meta['year'] = year
+    meta['month'] = month
+    return date(year, month, 1), date(year, month, last_day), meta
 
 
 class MonthlySummaryAPIView(APIView):
@@ -1037,6 +1112,11 @@ class MonthlySummaryAPIView(APIView):
         response_data = {
             'start_date': str(start),
             'end_date': str(end),
+            'start_date_ad': _format_ad_bs(start)[0],
+            'start_date_bs': _format_ad_bs(start)[1],
+            'end_date_ad': _format_ad_bs(end)[0],
+            'end_date_bs': _format_ad_bs(end)[1],
+            'requested_date_format': meta.get('requested_date_format'),
             'summary': page,
             'count': paginator.page.paginator.count,
             'pagination': {
@@ -1120,7 +1200,8 @@ class MonthlySummaryDetailedAPIView(APIView):
                 if entry:
                     day_entries.append(entry)
                 else:
-                    day_entries.append({'attendance_date': str(day_value), 'present': False})
+                    ad, bs = _format_ad_bs(day_value)
+                    day_entries.append({'attendance_date': ad, 'attendance_date_ad': ad, 'attendance_date_bs': bs, 'present': False})
 
             rows.append({
                 'employee': {'id': emp.id, 'name': emp.name, 'employee_code': emp.employee_code},
@@ -1133,6 +1214,11 @@ class MonthlySummaryDetailedAPIView(APIView):
         response_data = {
             'start_date': str(start),
             'end_date': str(end),
+            'start_date_ad': _format_ad_bs(start)[0],
+            'start_date_bs': _format_ad_bs(start)[1],
+            'end_date_ad': _format_ad_bs(end)[0],
+            'end_date_bs': _format_ad_bs(end)[1],
+            'requested_date_format': meta.get('requested_date_format'),
             'days_in_range': len(days),
             'rows': page,
             'count': paginator.page.paginator.count,
@@ -1216,6 +1302,20 @@ class IClockDataParserView(APIView):
                     attendance_date=timestamp.date(),
                     defaults={'first_check_in': check_in_time, 'last_check_out': check_out_time}
                 )
+
+                # Ensure BS date is populated for created records (and kept consistent)
+                try:
+                    from attendance.date_utils import ad_to_bs
+                    from datetime import date as _date
+
+                    y, m, d = ad_to_bs(record.attendance_date)
+                    next_bs = _date(int(y), int(m), int(d))
+                    if created or record.attendance_date_bs != next_bs:
+                        record.attendance_date_bs = next_bs
+                        record.save(update_fields=['attendance_date_bs'])
+                except Exception:
+                    # Non-fatal: continue processing even if conversion fails
+                    pass
 
                 if not created:
                     if check_in_time:

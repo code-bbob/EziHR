@@ -8,3 +8,6 @@ djangorestframework-simplejwt>=5.5.0
 psycopg[binary]>=3.2,<4
 Pillow>=10.0.0
 pyzk>=0.9
+
+# Nepali date conversion library used for AD<->BS conversions
+nepali-date-utils
