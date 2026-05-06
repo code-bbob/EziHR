@@ -315,7 +315,7 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
         "relative flex w-full min-w-0 flex-1 flex-col overflow-x-hidden bg-background md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
         // When the right sidebar is open, add right padding on large screens so
         // the main content does not get covered by the sidebar — match dashboard behavior.
-        isOpen ? "lg:pr-[24rem]" : "",
+        isOpen ? "lg:pr-[16rem]" : "",
         className
       )}
       {...props}

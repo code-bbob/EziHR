@@ -604,7 +604,7 @@ export default function HomePage() {
                   </Card>
 
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid md:grid-cols-2 gap-4">
                   <Card className="shadow-sm border-border/50">
                     <CardHeader className="flex flex-row items-center justify-between gap-4">
                       <div>

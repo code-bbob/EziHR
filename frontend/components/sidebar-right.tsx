@@ -17,19 +17,21 @@ export function SidebarRight({ ...props }: React.ComponentProps<'div'>) {
     <div
       aria-hidden={!isOpen}
       className={
-        `fixed inset-y-0 right-0 z-30 w-96 transform transition-transform duration-300 ease-in-out ` +
+        `fixed inset-y-0 right-0 z-30 hidden lg:block transform transition-transform duration-300 ease-in-out ` +
         (isOpen ? 'translate-x-0' : 'translate-x-full')
       }
       {...props}
     >
       <div className="flex h-full flex-col border-l border-sidebar-border bg-gradient-to-b from-sidebar/80 via-sidebar/50 to-sidebar/80 backdrop-blur-2xl overflow-hidden">
-        <SidebarContent className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pr-3">
+        <SidebarContent className="min-h-0 flex-1 overflow-y-auto py-4">
           <div className="space-y-3">
             <section className="space-y-2">
+                    <p className="text-sm  text-center border-b border-black/20 pb-2 mb-4 font-bold text-black px-1">AD Calendar</p>
               <AdCalendar key={selection.ad} selectedDate={selection.ad} onDateSelect={setSelection} />
             </section>
 
             <section className="space-y-2">
+                    <p className="text-sm  text-center border-t border-b border-black/20 pt-4 pb-2 mb-4 font-bold text-black px-1">BS Calendar</p>
               <NepaliBSCalendar key={selection.bs} selectedDate={selection.bs} onDateSelect={setSelection} />
             </section>
           </div>

@@ -115,9 +115,15 @@ export function DashboardSidebar({
   className,
   ...props
 }: DashboardSidebarProps) {
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, isMobile, setOpenMobile } = useSidebar();
   const router = useRouter();
-  const collapsed = state === "collapsed";
+  // On mobile the sidebar renders inside a Sheet — always show full content
+  const collapsed = !isMobile && state === "collapsed";
+
+  // Close the mobile Sheet after navigation so the user sees the page
+  const closeMobileNav = () => {
+    if (isMobile) setOpenMobile(false);
+  };
   const [enterpriseName, setEnterpriseName] = useState("");
   const [expandedPlatform, setExpandedPlatform] = useState(true);
   const [expandedSelect, setExpandedSelect] = useState(true);
@@ -267,7 +273,7 @@ export function DashboardSidebar({
           <button
             onClick={() => {
               setExpandedSelect(!expandedSelect);
-              if (collapsed) toggleSidebar();
+              if (collapsed && !isMobile) toggleSidebar();
             }}
             className={cn(
               "w-full flex items-center justify-between px-0 py-",
@@ -362,7 +368,7 @@ export function DashboardSidebar({
           <button
             onClick={() => {
               setExpandedPlatform(!expandedPlatform);
-              if (collapsed) toggleSidebar();
+              if (collapsed && !isMobile) toggleSidebar();
             }}
             className={cn(
               "w-full flex items-center justify-between px-0 border-t border-sidebar-border pt-3",
@@ -396,6 +402,7 @@ export function DashboardSidebar({
                   <button
                     onClick={() => {
                       onViewDashboard?.();
+                      closeMobileNav();
                       if (collapsed) toggleSidebar();
                     }}
                     className={cn(
@@ -415,6 +422,7 @@ export function DashboardSidebar({
                   <button
                     onClick={() => {
                       onViewAttendance?.();
+                      closeMobileNav();
                       if (collapsed) toggleSidebar();
                     }}
                     className={cn(
@@ -434,6 +442,7 @@ export function DashboardSidebar({
                   <button
                     onClick={() => {
                       onViewStaff?.();
+                      closeMobileNav();
                       if (collapsed) toggleSidebar();
                     }}
                     className={cn(
@@ -457,7 +466,7 @@ export function DashboardSidebar({
           <button
             onClick={() => {
               setExpandedEmployees(!expandedEmployees);
-              if (collapsed) toggleSidebar();
+              if (collapsed && !isMobile) toggleSidebar();
             }}
             className={cn(
               "w-full flex items-center justify-between border-t border-sidebar-border px-0 py-1.5",
@@ -492,6 +501,7 @@ export function DashboardSidebar({
                       onClick={() => {
                         router.push(`/staff/${employee.id}`);
                         onSelectEmployee?.(employee.id);
+                        closeMobileNav();
                       }}
                       className="w-full text-left px-3 py-1.5 text-sm rounded hover:bg-sidebar-accent transition-colors text-muted-foreground hover:text-foreground font-medium flex items-center gap-2"
                     >
@@ -514,6 +524,7 @@ export function DashboardSidebar({
                   <button
                     onClick={() => {
                       onViewStaff?.();
+                      closeMobileNav();
                     }}
                     className="w-full text-left px-3 py-2 text-xs font-semibold uppercase tracking-wider text-primary rounded hover:bg-sidebar-accent transition-colors"
                   >

@@ -291,10 +291,10 @@ export default function SettingsPage() {
       </section>
 
       {/* Date Format Preferences Section */}
-      <section className="mb-8">
+      {/* <section className="mb-8">
         <h2 className="text-2xl font-bold mb-4">Preferences</h2>
         <DateFormatPreferences />
-      </section>
+      </section> */}
 
       <AddDepartmentModal isOpen={showAddDept} onClose={() => setShowAddDept(false)} onSuccess={() => { setShowAddDept(false); loadData(); }} />
       <AddEmployeeModal isOpen={showAddEmp} onClose={() => setShowAddEmp(false)} onSuccess={() => { setShowAddEmp(false); loadData(); }} />
