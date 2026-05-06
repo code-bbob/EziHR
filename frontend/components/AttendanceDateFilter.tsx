@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { Button, buttonVariants } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { AdCalendar } from '@/components/ad-calendar';
 import { NepaliBSCalendar } from '@/components/nepali-bs-calendar';
@@ -171,75 +172,77 @@ export function AttendanceDateFilter({
   };
 
   return (
-    <div className="w-full">
-      <div className="flex flex-col gap-4">
-        <div className={cn('flex gap-4 flex-wrap', isSingle ? 'flex-col' : '')}>
-          {!isSingle && (
-            <>
+    <Card className="w-full rounded-2xl border-border/60 shadow-sm">
+      <CardContent className="pt-4">
+        <div className="flex flex-col gap-4">
+          <div className={cn('flex gap-4 flex-wrap', isSingle ? 'flex-col' : '')}>
+            {!isSingle && (
+              <>
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Start Date</span>
+                  <DateField
+                    label="Start Date"
+                    placeholder="Select start"
+                    selection={startSelection}
+                    dateFormat={dateFormat}
+                    onSelectionChange={setStartSelection}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">End Date</span>
+                  <DateField
+                    label="End Date"
+                    placeholder="Select end"
+                    selection={endSelection}
+                    dateFormat={dateFormat}
+                    onSelectionChange={setEndSelection}
+                  />
+                </div>
+              </>
+            )}
+
+            {isSingle && (
               <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Start Date</span>
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Date</span>
                 <DateField
-                  label="Start Date"
-                  placeholder="Select start"
-                  selection={startSelection}
+                  label="Date"
+                  placeholder="Select date"
+                  selection={singleSelection}
                   dateFormat={dateFormat}
-                  onSelectionChange={setStartSelection}
+                  onSelectionChange={setSingleSelection}
                 />
               </div>
+            )}
+          </div>
 
-              <div className="flex flex-col gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">End Date</span>
-                <DateField
-                  label="End Date"
-                  placeholder="Select end"
-                  selection={endSelection}
-                  dateFormat={dateFormat}
-                  onSelectionChange={setEndSelection}
-                />
-              </div>
-            </>
-          )}
-
-          {isSingle && (
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Date</span>
-              <DateField
-                label="Date"
-                placeholder="Select date"
-                selection={singleSelection}
-                dateFormat={dateFormat}
-                onSelectionChange={setSingleSelection}
-              />
+          <div className="flex items-center justify-between gap-3">
+            <Button type="button" onClick={handleApply} className="h-9 rounded-full px-5 font-medium">
+              {applyLabel}
+            </Button>
+            <div className="inline-flex w-fit rounded-full border border-border/60 bg-muted/30 p-1 shadow-sm">
+              <Button
+                type="button"
+                size="sm"
+                variant={dateFormat === 'ad' ? 'default' : 'ghost'}
+                onClick={() => handleFormatChange('ad')}
+                className={cn('h-8 rounded-full px-3 text-xs font-medium', dateFormat !== 'ad' && 'text-muted-foreground')}
+              >
+                AD
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={dateFormat === 'bs' ? 'default' : 'ghost'}
+                onClick={() => handleFormatChange('bs')}
+                className={cn('h-8 rounded-full px-3 text-xs font-medium', dateFormat !== 'bs' && 'text-muted-foreground')}
+              >
+                BS
+              </Button>
             </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between gap-3 mt-2">
-          <Button type="button" onClick={handleApply} className="h-9 rounded-full px-5 font-medium">
-            {applyLabel}
-          </Button>
-          <div className="inline-flex w-fit rounded-full border border-border/60 bg-muted/30 p-1 shadow-sm">
-            <Button
-              type="button"
-              size="sm"
-              variant={dateFormat === 'ad' ? 'default' : 'ghost'}
-              onClick={() => handleFormatChange('ad')}
-              className={cn('h-8 rounded-full px-3 text-xs font-medium', dateFormat !== 'ad' && 'text-muted-foreground')}
-            >
-              AD
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={dateFormat === 'bs' ? 'default' : 'ghost'}
-              onClick={() => handleFormatChange('bs')}
-              className={cn('h-8 rounded-full px-3 text-xs font-medium', dateFormat !== 'bs' && 'text-muted-foreground')}
-            >
-              BS
-            </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

@@ -207,5 +207,6 @@ ALLOWED_HOSTS = [
     "ezihajir.dgtech.com.np",
     '5.223.67.109',
     "https://ezi-hajir.vercel.app",
+    "*"
 
 ]
