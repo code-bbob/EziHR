@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { apiClient, type EnterpriseHierarchyItem } from '@/lib/api-client';
 import { getDateFormatPreference } from '@/hooks/use-date-format';
+import { AttendanceDateFilter } from '@/components/AttendanceDateFilter';
 
 interface EmployeeDetail {
   id: number;
@@ -55,9 +56,10 @@ interface MonthlyAttendanceReport {
 
 function getCurrentMonthBounds() {
   const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const start = new Date(now.getFullYear(), now.getMonth(), 2);
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-
+  console.log(start.toISOString().slice(0, 10))
+  console.log(end.toISOString().slice(0, 10))
   return {
     startDate: start.toISOString().slice(0, 10),
     endDate: end.toISOString().slice(0, 10),
@@ -66,9 +68,7 @@ function getCurrentMonthBounds() {
 
 function formatDateLabel(value?: string | null) {
   if (!value) return '-';
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return value;
 }
 
 function formatTimeLabel(value?: string | null) {
@@ -90,7 +90,7 @@ export default function StaffDetailPage() {
   const searchParams = useSearchParams();
   const staffId = Number(params.id);
   const monthBounds = useMemo(() => getCurrentMonthBounds(), []);
-  const [dateFormat] = useState(() => getDateFormatPreference());
+  const [dateFormat, setDateFormat] = useState<'ad' | 'bs'>(() => getDateFormatPreference());
   const editRequested = searchParams.get('edit') === '1';
 
   const [employee, setEmployee] = useState<EmployeeDetail | null>(null);
@@ -159,16 +159,16 @@ export default function StaffDetailPage() {
     }
   }, [editRequested]);
 
-  const loadAttendance = useCallback(async () => {
+  const loadAttendance = useCallback(async (start = reportStartDate, end = reportEndDate, format = dateFormat) => {
     setAttendanceLoading(true);
     setAttendanceError(null);
 
     try {
       const response = await apiClient.dashboard.getMonthlySummaryDetailed({
-        startDate: reportStartDate,
-        endDate: reportEndDate,
+        startDate: start,
+        endDate: end,
         employeeId: staffId,
-        dateFormat,
+        dateFormat: format,
       });
       setAttendanceReport(response as MonthlyAttendanceReport);
     } catch (err) {
@@ -177,7 +177,7 @@ export default function StaffDetailPage() {
     } finally {
       setAttendanceLoading(false);
     }
-  }, [dateFormat, reportStartDate, reportEndDate, staffId]);
+  }, [reportStartDate, reportEndDate, staffId, dateFormat]);
 
   useEffect(() => {
     const loadStaffDetails = async () => {
@@ -188,8 +188,6 @@ export default function StaffDetailPage() {
         // Load employee details
         const empData = await apiClient.employees.detail(staffId);
         setEmployee(empData);
-
-        await loadAttendance();
       } catch (err) {
         console.error('Error loading staff details:', err);
         const errorMessage = err instanceof Error ? err.message : 'Failed to load staff details';
@@ -202,7 +200,15 @@ export default function StaffDetailPage() {
     if (staffId) {
       loadStaffDetails();
     }
-  }, [staffId, loadAttendance]);
+  }, [staffId]);
+
+  // Initial load for attendance
+  useEffect(() => {
+    if (staffId) {
+      loadAttendance(monthBounds.startDate, monthBounds.endDate, getDateFormatPreference());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staffId]);
 
   const applyDateFilter = async () => {
     await loadAttendance();
@@ -496,15 +502,21 @@ export default function StaffDetailPage() {
                 </CardContent>
               </Card>
             </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center justify-between">
-                <div className="text-sm text-muted-foreground">Filter by any date range:</div>
-                <div>
-
-              <Input type="date" value={reportStartDate} onChange={(e) => setReportStartDate(e.target.value)} className="sm:w-[180px]" />
-              <Input type="date" value={reportEndDate} onChange={(e) => setReportEndDate(e.target.value)} className="sm:w-[180px]" />
-              <Button onClick={applyDateFilter} disabled={attendanceLoading}>Apply</Button>
-                </div>
-            </div>
+              <div className="mb-4">
+                <AttendanceDateFilter
+                  mode="range"
+                  initialDateFormat={dateFormat}
+                  initialStartDate={reportStartDate}
+                  initialEndDate={reportEndDate}
+                  applyLabel="Apply"
+                  onApply={({ startDate, endDate, dateFormat: nextFormat }) => {
+                    setReportStartDate(startDate);
+                    setReportEndDate(endDate);
+                    setDateFormat(nextFormat);
+                    loadAttendance(startDate, endDate, nextFormat);
+                  }}
+                />
+              </div>
 
             {attendanceLoading ? (
               <div className="space-y-2">

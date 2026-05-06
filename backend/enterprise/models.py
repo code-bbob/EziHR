@@ -89,6 +89,10 @@ class Employee(models.Model):
         null=True,
         related_name='employee',
     )
+    email = models.EmailField(blank=True, null=True)
+    address = models.CharField(max_length=255, blank=True, null=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    dob = models.DateField(blank=True, null=True)
     role = models.CharField(choices=[('admin', 'Admin'), ('employee', 'Employee')], default='employee', max_length=20)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

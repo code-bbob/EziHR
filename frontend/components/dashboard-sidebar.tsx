@@ -527,7 +527,7 @@ export function DashboardSidebar({
       </SidebarContent>
 
       {/* Footer with User Info */}
-      <SidebarFooter className={cn("border-t border-sidebar-border px-4 py-3", collapsed && "px-2")}>
+      {/* <SidebarFooter className={cn("border-t border-sidebar-border px-4 py-3", collapsed && "px-2")}>
         <div className={cn("flex items-center gap-3 px-0", collapsed && "justify-center")}>
           <Avatar className="size-9 shrink-0" title={collapsed ? enterpriseName : undefined}>
             <AvatarFallback className="text-xs bg-primary/15 text-primary font-semibold">
@@ -541,7 +541,7 @@ export function DashboardSidebar({
             </div>
           )}
         </div>
-      </SidebarFooter>
+      </SidebarFooter> */}
     </Sidebar>
   );
 }

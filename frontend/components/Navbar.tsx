@@ -36,12 +36,6 @@ interface UserData {
   } | null;
 }
 
-const navigationItems = [
-  { href: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/attendance', label: 'Attendance', icon: Calendar1Icon },
-  { href: '/staff', label: 'Staff', icon: Users },
-  { href: '/settings', label: 'Settings', icon: Settings },
-];
 
 export function Navbar({ title = 'EziHR', subtitle, infoItems = [] }: NavbarProps) {
   const { user, logout } = useAuth();
@@ -76,26 +70,9 @@ export function Navbar({ title = 'EziHR', subtitle, infoItems = [] }: NavbarProp
             <Building2 className="h-6 w-6 text-primary shrink-0" />
             <span className="font-bold tracking-tight text-base sm:text-lg truncate">{title}</span>
           </Link>
-          {subtitle && <span className="hidden xl:inline-flex text-xs text-muted-foreground truncate">{subtitle}</span>}
+          <span className="hidden xl:inline-flex text-xs text-muted-foreground truncate">Welcome, {displayName}</span>
         </div>
 
-        <div className="hidden md:flex flex-1 items-center justify-center gap-1 lg:gap-2">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
-            const active = isActiveRoute(item.href);
-
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm font-medium transition-colors ${active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}
-              >
-                <Icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
 
         <div className="flex items-center gap-2 sm:gap-3 ml-auto">
           <div className="hidden xl:flex items-center gap-2">
