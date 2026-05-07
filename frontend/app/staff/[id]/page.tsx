@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { apiClient, type EnterpriseHierarchyItem } from '@/lib/api-client';
-import { getDateFormatPreference } from '@/hooks/use-date-format';
+// import { getDateFormatPreference } from '@/hooks/use-date-format';
 import { AttendanceDateFilter } from '@/components/AttendanceDateFilter';
 
 interface EmployeeDetail {
@@ -42,6 +42,8 @@ interface EmployeeDetail {
 
 interface AttendanceDayReport {
   attendance_date: string;
+  attendance_date_ad?: string;
+  attendance_date_bs?: string;
   present?: boolean;
   first_check_in?: string | null;
   last_check_out?: string | null;
@@ -66,9 +68,11 @@ function getCurrentMonthBounds() {
   };
 }
 
-function formatDateLabel(value?: string | null) {
-  if (!value) return '-';
-  return value;
+function formatDateLabel(day: AttendanceDayReport, dateFormat: 'ad' | 'bs') {
+  if (dateFormat === 'bs') {
+    return day.attendance_date_bs || day.attendance_date || '-';
+  }
+  return day.attendance_date_ad || day.attendance_date || '-';
 }
 
 function formatTimeLabel(value?: string | null) {
@@ -90,7 +94,7 @@ export default function StaffDetailPage() {
   const searchParams = useSearchParams();
   const staffId = Number(params.id);
   const monthBounds = useMemo(() => getCurrentMonthBounds(), []);
-  const [dateFormat, setDateFormat] = useState<'ad' | 'bs'>(() => getDateFormatPreference());
+  const [dateFormat, setDateFormat] = useState<'ad' | 'bs'>(() => 'ad');
   const editRequested = searchParams.get('edit') === '1';
 
   const [employee, setEmployee] = useState<EmployeeDetail | null>(null);
@@ -162,7 +166,7 @@ export default function StaffDetailPage() {
   const loadAttendance = useCallback(async (start = reportStartDate, end = reportEndDate, format = dateFormat) => {
     setAttendanceLoading(true);
     setAttendanceError(null);
-
+    console.log("Here for format", format)
     try {
       const response = await apiClient.dashboard.getMonthlySummaryDetailed({
         startDate: start,
@@ -205,7 +209,7 @@ export default function StaffDetailPage() {
   // Initial load for attendance
   useEffect(() => {
     if (staffId) {
-      loadAttendance(monthBounds.startDate, monthBounds.endDate, getDateFormatPreference());
+      loadAttendance(monthBounds.startDate, monthBounds.endDate, 'ad');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staffId]);
@@ -544,7 +548,7 @@ export default function StaffDetailPage() {
                   <TableBody>
                     {employeeDays.map((day) => (
                       <TableRow key={day.attendance_date}>
-                        <TableCell>{formatDateLabel(day.attendance_date)}</TableCell>
+                        <TableCell>{formatDateLabel(day, dateFormat)}</TableCell>
                         <TableCell>
                           <Badge variant={day.present ? 'default' : 'secondary'}>
                             {day.present ? 'Present' : 'Absent'}

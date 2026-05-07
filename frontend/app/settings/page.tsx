@@ -46,11 +46,12 @@ export default function SettingsPage() {
 
   const handleDeptEdit = (department: any) => {
     setEditingDeptId(department.id);
+  
     setDeptForm({
       name: department.name,
       branch_id: department.branch?.id || '',
-      arrival_time: department.arrival_time || '',
-      departure_time: department.departure_time || '',
+      arrival_time: department.arrival_time?.slice(0, 5) || '',
+      departure_time: department.departure_time?.slice(0, 5) || '',
     });
   };
 
@@ -59,9 +60,10 @@ export default function SettingsPage() {
       await apiClient.enterprise.updateDepartment(departmentId, {
         name: deptForm.name,
         branch_id: deptForm.branch_id || null,
-        arrival_time: deptForm.arrival_time,
-        departure_time: deptForm.departure_time,
+        arrival_time: deptForm.arrival_time?.slice(0, 5) || null,
+        departure_time: deptForm.departure_time?.slice(0, 5) || null,
       });
+  
       setEditingDeptId(null);
       await loadData();
     } catch (err) {
@@ -161,24 +163,35 @@ export default function SettingsPage() {
                   </div>
                   {editingDeptId === dept.id ? (
                     <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+                      <div className='flex flex-col'>
+                        <label>Department Name:</label>
                       <input
                         className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                         value={deptForm.name}
                         onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
                         placeholder="Department name"
                       />
+                      </div>
+                      <div className='flex flex-col'>
+                        <label>Arrival Time:</label>
                       <input
                         type="time"
                         className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                         value={deptForm.arrival_time || ''}
                         onChange={(e) => setDeptForm({ ...deptForm, arrival_time: e.target.value })}
                       />
+                      </div>
+                      <div className='flex flex-col'>
+                        <label>Departure Time:</label>
                       <input
                         type="time"
                         className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                         value={deptForm.departure_time || ''}
                         onChange={(e) => setDeptForm({ ...deptForm, departure_time: e.target.value })}
                       />
+                      </div>
+                      <div className='flex flex-col'>
+                        <label>Branch:</label>
                       <select
                         className="h-9 rounded-md border border-input bg-background px-3 text-sm"
                         value={deptForm.branch_id || ''}
@@ -189,7 +202,8 @@ export default function SettingsPage() {
                           <option key={branch.id} value={branch.id}>{branch.name}</option>
                         ))}
                       </select>
-                    </div>
+                      </div>
+                      </div>
                   ) : (
                     <div className="text-sm text-muted-foreground mt-1">
                       Arrival: {(dept as any).arrival_time || '09:00'} — Departure: {(dept as any).departure_time || '18:00'}
@@ -294,7 +308,7 @@ export default function SettingsPage() {
       {/* <section className="mb-8">
         <h2 className="text-2xl font-bold mb-4">Preferences</h2>
         <DateFormatPreferences />
-      </section> */}
+      </section>  */}
 
       <AddDepartmentModal isOpen={showAddDept} onClose={() => setShowAddDept(false)} onSuccess={() => { setShowAddDept(false); loadData(); }} />
       <AddEmployeeModal isOpen={showAddEmp} onClose={() => setShowAddEmp(false)} onSuccess={() => { setShowAddEmp(false); loadData(); }} />

@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Building2, Calendar1Icon, LayoutDashboard, LogOut, Settings, Users } from 'lucide-react';
+import { Building2, Calendar1Icon, LayoutDashboard, LogOut, Settings, Users, Menu } from 'lucide-react';
 import { Button } from './ui/button';
 import { SidebarTrigger } from './ui/sidebar';
 import { useRightSidebar } from '@/hooks/useRightSidebar';
@@ -67,7 +67,6 @@ export function Navbar({ title = 'EziHR', subtitle, infoItems = [] }: NavbarProp
             <SidebarTrigger aria-label="Toggle navigation" />
           </div>
           <Link href="/" className="flex items-center gap-2 min-w-0">
-            <Building2 className="h-6 w-6 text-primary shrink-0" />
             <span className="font-bold tracking-tight text-base sm:text-lg truncate">{title}</span>
           </Link>
           <span className="hidden xl:inline-flex text-xs text-muted-foreground truncate">Welcome, {displayName}</span>

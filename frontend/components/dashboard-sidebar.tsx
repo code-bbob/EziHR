@@ -174,7 +174,7 @@ export function DashboardSidebar({
         id: e.id,
         name: e.name,
         employee_code: e.employee_code,
-        is_admin: e.user.is_admin,
+        is_admin: Boolean(e.user?.is_admin || e.user?.is_superuser),
       }));
       setLocalEmployees(mapped);
     } catch (err) {
@@ -220,8 +220,8 @@ export function DashboardSidebar({
                     </span>
                   )}
                   {selectedBranchName && (
-                    <div className="flex items-center gap-1 bg-sidebar-accent border border-sidebar-border px-2 py-0.5 rounded text-[10px] font-semibold text-foreground group transition-all hover:border-primary/30">
-                      <span className="truncate max-w-[80px]">{selectedBranchName}</span>
+                    <div className="flex items-center gap-1 bg-sidebar-accent border border-sidebar-border px-2 py-1 rounded text-[12px] font-semibold text-foreground group transition-all hover:border-primary/30">
+                      <span className="truncate max-w-[120px] mt-1">{selectedBranchName}</span>
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
@@ -230,22 +230,22 @@ export function DashboardSidebar({
                         className="text-muted-foreground hover:text-destructive transition-colors ml-0.5"
                         title="Clear Branch"
                       >
-                        <X className="size-2.5 stroke-[3]" />
+                        <X className="size-3.5" />
                       </button>
                     </div>
                   )}
                   {selectedDepartmentName && (
-                    <div className="flex items-center gap-1 bg-primary/5 border border-primary/20 px-2 py-0.5 rounded text-[10px] font-semibold text-primary group transition-all hover:border-primary/40">
-                      <span className="truncate max-w-[80px]">{selectedDepartmentName}</span>
+                    <div className="flex items-center gap-1 bg-primary/5 border border-primary/20 px-2 py-1 rounded text-[12px] font-semibold text-primary group transition-all hover:border-primary/40">
+                      <span className="truncate max-w-[120px] mt-1">{selectedDepartmentName}</span>
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
                           onClearDepartment?.();
                         }}
-                        className="text-primary/60 hover:text-destructive transition-colors ml-0.5"
+                        className="text-primary/60 hover:text-destructive transition-colors ml-0.5 mt-1"
                         title="Clear Department"
                       >
-                        <X className="size-2.5 stroke-[3]" />
+                        <X className="size-3.5 mb-1" />
                       </button>
                     </div>
                   )}

@@ -12,13 +12,20 @@ import { AttendanceReportTabs } from '@/components/attendance-report-tabs';
 import { AttendanceDateFilter } from '@/components/AttendanceDateFilter';
 import { DateFormatBadge } from '@/components/DateDisplay';
 
+function padDate(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function getMonthBounds() {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   return {
-    startDate: start.toISOString().slice(0, 10),
-    endDate: end.toISOString().slice(0, 10),
+    startDate: padDate(start),
+    endDate: padDate(end),
   };
 }
 

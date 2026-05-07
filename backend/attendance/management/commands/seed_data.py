@@ -1,464 +1,511 @@
 import random
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, date as _date
 from django.core.management.base import BaseCommand
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
-from faker import Faker
-from userauth.models import User
 from enterprise.models import Enterprise, Branch, Department, Employee
 from attendance.models import AttendanceEvent, DailyAttendance
 
-fake = Faker()
+
+# Nepali names for realistic data
+NEPALI_FIRST_NAMES_MALE = [
+    'Aarav', 'Bikash', 'Chandan', 'Deepak', 'Gaurav', 'Hari', 'Ishwor',
+    'Kiran', 'Lokesh', 'Manish', 'Nabin', 'Pawan', 'Rajesh', 'Sagar',
+    'Sunil', 'Umesh', 'Yogesh', 'Anish', 'Bipin', 'Dinesh', 'Ganesh',
+    'Krishna', 'Niraj', 'Prakash', 'Ramesh', 'Santosh', 'Aashish', 'Bijay',
+]
+NEPALI_FIRST_NAMES_FEMALE = [
+    'Aarti', 'Binita', 'Deepa', 'Gita', 'Kamala', 'Laxmi', 'Nisha',
+    'Puja', 'Rekha', 'Sabina', 'Sunita', 'Uma', 'Anita', 'Durga',
+    'Mina', 'Rita', 'Sita', 'Tara', 'Sarita', 'Sangita', 'Priya',
+]
+NEPALI_LAST_NAMES = [
+    'Adhikari', 'Basnet', 'Bhatt', 'Bhandari', 'Chhetri', 'Dahal',
+    'Gautam', 'Gurung', 'Joshi', 'Karki', 'KC', 'Koirala', 'Lamichhane',
+    'Maharjan', 'Neupane', 'Pandey', 'Poudel', 'Rai', 'Sharma', 'Shrestha',
+    'Subedi', 'Thapa', 'Tamang', 'Acharya', 'Ghimire', 'Sapkota', 'Regmi',
+]
+
+DEPARTMENT_CONFIGS = [
+    {'name': 'Engineering', 'arrival': time(9, 0), 'departure': time(18, 0), 'size': 8},
+    {'name': 'Sales & Marketing', 'arrival': time(9, 30), 'departure': time(18, 30), 'size': 5},
+    {'name': 'Human Resources', 'arrival': time(9, 0), 'departure': time(17, 0), 'size': 3},
+    {'name': 'Finance', 'arrival': time(9, 0), 'departure': time(17, 30), 'size': 4},
+    {'name': 'Operations', 'arrival': time(8, 30), 'departure': time(17, 30), 'size': 5},
+]
 
 
 class Command(BaseCommand):
-    help = 'Seed database with dummy data for analytics'
+    help = 'Seed database with realistic dummy data for analytics'
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            '--enterprises',
-            type=int,
-            default=2,
-            help='Number of enterprises to create'
-        )
-        parser.add_argument(
-            '--branches',
-            type=int,
-            default=3,
-            help='Number of branches per enterprise'
-        )
-        parser.add_argument(
-            '--departments',
-            type=int,
-            default=5,
-            help='Number of departments per branch'
-        )
-        parser.add_argument(
-            '--employees',
-            type=int,
-            default=50,
-            help='Number of employees per department'
-        )
         parser.add_argument(
             '--days',
             type=int,
             default=90,
-            help='Number of days of attendance data to generate'
+            help='Number of days of attendance data to generate (default: 90)',
         )
         parser.add_argument(
             '--clear',
             action='store_true',
-            help='Clear existing data before seeding'
+            help='Clear ALL existing attendance data, employees (except superusers), departments before seeding',
         )
 
     def handle(self, *args, **options):
+        num_days = options['days']
+        today = timezone.localdate()
+
         if options['clear']:
-            self.stdout.write('Clearing existing data...')
+            self.stdout.write(self.style.WARNING('Clearing existing attendance, employee & department data...'))
             AttendanceEvent.objects.all().delete()
             DailyAttendance.objects.all().delete()
             Employee.objects.all().delete()
             Department.objects.all().delete()
-            Branch.objects.all().delete()
-            Enterprise.objects.all().delete()
-            User.objects.filter(is_superuser=False).delete()
+            self.stdout.write('  ✓ Cleared')
 
-        num_enterprises = options['enterprises']
-        num_branches = options['branches']
-        num_departments = options['departments']
-        num_employees = options['employees']
-        num_days = options['days']
-        today = timezone.localdate()
-
-        self.stdout.write(self.style.SUCCESS('Starting data seeding...'))
-
-        enterprises = self.create_enterprises(num_enterprises)
-        branches = self.create_branches(enterprises, num_branches)
-        departments = self.create_departments(branches, num_departments)
-        employees = self.create_employees(departments, num_employees)
-        attendance_stats = self.create_attendance_data(employees, num_days, today=today)
-
-        self.stdout.write(
-            self.style.SUCCESS(
-                f'\nSuccessfully seeded database with:\n'
-                f'- {len(enterprises)} enterprises\n'
-                f'- {len(branches)} branches\n'
-                f'- {len(departments)} departments\n'
-                f'- {len(employees)} employees\n'
-                f'- {attendance_stats["days_generated"]} days of attendance data (through {today})\n'
-                f'- {attendance_stats["present_days"]} present records\n'
-                f'- {attendance_stats["late_days"]} late arrivals\n'
-                f'- {attendance_stats["early_departures"]} early departures\n'
-                f'- {attendance_stats["overtime_days"]} overtime records'
-            )
-        )
-
-    def create_enterprises(self, count):
-        self.stdout.write('Creating enterprises...')
-        enterprises = []
-        for i in range(count):
+        # ── Get or create the enterprise & branch ──────────────────────
+        enterprise = Enterprise.objects.first()
+        if enterprise is None:
             enterprise = Enterprise.objects.create(
-                name=fake.company(),
-                address=fake.address(),
-                contact_email=fake.email(),
-                contact_phone=fake.phone_number(),
+                name='Digitech',
+                address='Basundhara, Kathmandu',
+                contact_email='info@digitech.com.np',
+                contact_phone='01-4567890',
                 licensed=True,
-                licensed_until=timezone.now().date() + timedelta(days=365),
-                max_alowed_employees=500,
+                licensed_until=today + timedelta(days=365),
+                max_alowed_employees=200,
             )
-            enterprises.append(enterprise)
-        self.stdout.write(f'Created {count} enterprises')
-        return enterprises
+        self.stdout.write(f'Enterprise: {enterprise.name} (id={enterprise.id})')
 
-    def create_branches(self, enterprises, count):
-        self.stdout.write('Creating branches...')
-        branches = []
-        for enterprise in enterprises:
-            for i in range(count):
-                branch = Branch.objects.create(
-                    enterprise=enterprise,
-                    name=f'{fake.city()} Branch {i + 1}',
-                    address=fake.address(),
-                    contact_email=fake.email(),
-                    contact_phone=fake.phone_number(),
-                )
-                branches.append(branch)
-        self.stdout.write(f'Created {len(branches)} branches')
-        return branches
+        branch = Branch.objects.filter(enterprise=enterprise).first()
+        if branch is None:
+            branch = Branch.objects.create(
+                enterprise=enterprise,
+                name='Basundhara',
+                address='Basundhara, Kathmandu',
+                contact_email='basundhara@digitech.com.np',
+                contact_phone='01-4567891',
+            )
+        self.stdout.write(f'Branch: {branch.name} (id={branch.id})')
 
-    def create_departments(self, branches, count):
-        self.stdout.write('Creating departments...')
+        # ── Create departments ─────────────────────────────────────────
+        departments = self._create_departments(enterprise, branch)
+
+        # ── Create employees ───────────────────────────────────────────
+        employees = self._create_employees(enterprise, branch, departments)
+
+        # ── Generate attendance ────────────────────────────────────────
+        stats = self._generate_attendance(employees, num_days, today)
+
+        self.stdout.write(self.style.SUCCESS(
+            f'\n{"=" * 60}\n'
+            f'  ✅ Seed complete!\n'
+            f'{"=" * 60}\n'
+            f'  Enterprise:       {enterprise.name}\n'
+            f'  Branch:           {branch.name}\n'
+            f'  Departments:      {len(departments)}\n'
+            f'  Employees:        {len(employees)}\n'
+            f'  Date range:       {today - timedelta(days=num_days - 1)} → {today}\n'
+            f'  Working days:     {stats["working_days"]}\n'
+            f'  Present records:  {stats["present"]}\n'
+            f'  Absent records:   {stats["absent"]}\n'
+            f'  Late arrivals:    {stats["late"]}\n'
+            f'  Early departures: {stats["early"]}\n'
+            f'  Overtime days:    {stats["overtime"]}\n'
+            f'  Events created:   {stats["events"]}\n'
+            f'{"=" * 60}'
+        ))
+
+    # ─── Departments ──────────────────────────────────────────────────
+
+    def _create_departments(self, enterprise, branch):
         departments = []
-        department_names = [
-            'Engineering', 'Sales', 'Marketing', 'HR', 'Finance',
-            'Operations', 'Customer Support', 'Product', 'Design', 'Legal'
-        ]
-        for branch in branches:
-            for i in range(count):
-                # Use modulo to cycle through department names to ensure uniqueness
-                dept_name = department_names[i % len(department_names)]
-                # Add a number suffix if we've cycled through all names
-                if i >= len(department_names):
-                    dept_name = f'{dept_name} - Team {i // len(department_names) + 1}'
-                
-                department = Department.objects.create(
-                    enterprise=branch.enterprise,
-                    branch=branch,
-                    name=dept_name,
-                    arrival_time=time(hour=9, minute=0),
-                    departure_time=time(hour=18, minute=0),
-                )
-                departments.append(department)
-        self.stdout.write(f'Created {len(departments)} departments')
+        for config in DEPARTMENT_CONFIGS:
+            dept, created = Department.objects.get_or_create(
+                enterprise=enterprise,
+                branch=branch,
+                name=config['name'],
+                defaults={
+                    'arrival_time': config['arrival'],
+                    'departure_time': config['departure'],
+                },
+            )
+            if not created:
+                dept.arrival_time = config['arrival']
+                dept.departure_time = config['departure']
+                dept.save(update_fields=['arrival_time', 'departure_time'])
+            departments.append(dept)
+            tag = 'created' if created else 'exists'
+            self.stdout.write(f'  Department: {dept.name} ({tag})')
+
         return departments
 
-    def create_employees(self, departments, count):
-        self.stdout.write('Creating employees...')
-        password_hash = make_password('testpass123')
-        users_to_create = []
-        employee_payloads = []
-        email_counter = 0
-        employee_counter = 1
+    # ─── Employees ────────────────────────────────────────────────────
 
-        for department in departments:
-            for _ in range(count):
-                email = f'employee_{email_counter}@company.com'
-                email_counter += 1
-                name = fake.name()
-                employee_code = f'EMP{employee_counter:05d}'
-                employee_counter += 1
-                username = f'emp_{employee_code}'
-                role = random.choice(['admin', 'employee'])
+    def _create_employees(self, enterprise, branch, departments):
+        # Assign existing unassigned employees to departments
+        existing = list(Employee.objects.filter(
+            enterprise=enterprise,
+            department__isnull=True,
+        ))
+        for i, emp in enumerate(existing):
+            emp.department = departments[i % len(departments)]
+            emp.branch = branch
+            emp.save(update_fields=['department', 'branch'])
+            self.stdout.write(f'  Assigned existing employee {emp.name} → {emp.department.name}')
 
-                users_to_create.append(
-                    User(
-                        email=email,
-                        name=name,
-                        username=username,
-                        password=password_hash,
-                        is_active=True,
-                        is_staff=False,
-                        is_superuser=False,
-                    )
+        # Also assign employees that have departments already
+        assigned_existing = list(Employee.objects.filter(
+            enterprise=enterprise,
+            department__isnull=False,
+        ))
+
+        # Determine how many new employees to create per department
+        used_names = set()
+        new_employees = []
+        employee_code_start = (Employee.objects.count() or 0) + 10
+
+        for dept_config, department in zip(DEPARTMENT_CONFIGS, departments):
+            current_count = Employee.objects.filter(department=department).count()
+            target = dept_config['size']
+            to_create = max(0, target - current_count)
+
+            for j in range(to_create):
+                if random.random() < 0.45:
+                    first = random.choice(NEPALI_FIRST_NAMES_FEMALE)
+                else:
+                    first = random.choice(NEPALI_FIRST_NAMES_MALE)
+                last = random.choice(NEPALI_LAST_NAMES)
+                name = f'{first} {last}'
+
+                # Ensure unique-ish names
+                while name in used_names:
+                    last = random.choice(NEPALI_LAST_NAMES)
+                    name = f'{first} {last}'
+                used_names.add(name)
+
+                code = str(employee_code_start)
+                employee_code_start += 1
+
+                emp = Employee(
+                    employee_code=code,
+                    name=name,
+                    enterprise=enterprise,
+                    branch=branch,
+                    department=department,
+                    role='employee',
+                    is_active=True,
+                    email=f'{first.lower()}.{last.lower()}@digitech.com.np',
+                    phone=f'98{random.randint(10000000, 99999999)}',
                 )
-                employee_payloads.append((department, name, employee_code, role, email))
+                new_employees.append(emp)
 
-        User.objects.bulk_create(users_to_create, batch_size=500)
-        created_users = {
-            user.email: user
-            for user in User.objects.filter(email__in=[payload[4] for payload in employee_payloads])
+        if new_employees:
+            Employee.objects.bulk_create(new_employees, batch_size=200)
+            self.stdout.write(f'  Created {len(new_employees)} new employees')
+
+        all_employees = list(
+            Employee.objects.filter(enterprise=enterprise, is_active=True)
+            .select_related('department', 'branch', 'enterprise')
+            .order_by('name')
+        )
+        self.stdout.write(f'  Total active employees: {len(all_employees)}')
+        return all_employees
+
+    # ─── Attendance generation ────────────────────────────────────────
+
+    def _generate_attendance(self, employees, num_days, today):
+        base_date = today - timedelta(days=num_days - 1)
+
+        stats = {
+            'working_days': 0,
+            'present': 0,
+            'absent': 0,
+            'late': 0,
+            'early': 0,
+            'overtime': 0,
+            'events': 0,
         }
 
-        employees_to_create = []
-        for department, name, employee_code, role, email in employee_payloads:
-            employees_to_create.append(
-                Employee(
-                    employee_code=employee_code,
-                    name=name,
-                    enterprise=department.enterprise,
-                    branch=department.branch,
-                    department=department,
-                    user=created_users[email],
-                    role=role,
-                    is_active=True,
-                )
-            )
-
-        Employee.objects.bulk_create(employees_to_create, batch_size=500)
-        employees = list(
-            Employee.objects.filter(employee_code__in=[payload[2] for payload in employee_payloads])
-            .select_related('department', 'enterprise', 'branch', 'user')
-            .order_by('employee_code')
-        )
-        self.stdout.write(f'Created {len(employees)} employees')
-        return employees
-
-    def create_attendance_data(self, employees, num_days, today=None):
-        self.stdout.write('Creating attendance events...')
-        today = today or timezone.localdate()
-        if num_days <= 0:
-            return {
-                'days_generated': 0,
-                'present_days': 0,
-                'late_days': 0,
-                'early_departures': 0,
-                'overtime_days': 0,
+        # Build employee "personality" profiles for consistent patterns
+        # Some employees are chronically late, some always on time, etc.
+        profiles = {}
+        for emp in employees:
+            profiles[emp.id] = {
+                'punctuality': random.gauss(0.0, 1.0),   # negative = tends to be late
+                'diligence': random.gauss(0.0, 1.0),     # positive = tends to stay late / OT
+                'reliability': random.uniform(0.80, 0.98),  # attendance probability
             }
 
-        base_date = today - timedelta(days=num_days - 1)
-        present_days = 0
-        late_days = 0
-        early_departures = 0
-        overtime_days = 0
+        self.stdout.write(f'  Generating {num_days} days of attendance ({base_date} → {today})...')
 
         for day_offset in range(num_days):
             current_date = base_date + timedelta(days=day_offset)
+            weekday = current_date.weekday()  # 0=Mon, 6=Sun
 
-            # Skip weekends occasionally (but not always to have variety)
-            if current_date.weekday() >= 5:  # Saturday = 5, Sunday = 6
-                if current_date != today and random.random() < 0.7:  # 70% chance to skip weekends
-                    continue
+            # Nepal: Sunday is working, Saturday is off, some offices half-day Sat
+            is_sunday_off = False  # Sunday is a normal working day in Nepal
+            is_saturday = weekday == 5  # Saturday is the weekly off
+
+            if is_saturday:
+                # Some Saturdays might be working (government alternating schedule)
+                if random.random() < 0.85:
+                    continue  # Skip most Saturdays
+                # On working Saturdays, fewer people show up
+                saturday_attendance_rate = 0.4
+            else:
+                saturday_attendance_rate = None
+
+            stats['working_days'] += 1
 
             event_batch = []
             summary_batch = []
 
-            for employee_index, employee in enumerate(employees):
-                profile = self._build_attendance_profile(current_date, today, employee_index=employee_index)
+            for emp in employees:
+                emp_profile = profiles[emp.id]
 
-                # 85% chance of being present on a working day; always seed today with data.
-                if profile['present']:
-                    created = self.create_daily_attendance(employee, current_date, profile=profile)
-                    present_days += 1
-                    late_days += int(created['late_seconds'] > 0)
-                    early_departures += int(created['early_seconds'] > 0)
-                    overtime_days += int(created['overtime_minutes'] > 0)
-                    event_batch.extend(created['events'])
-                    summary_batch.append(created['summary'])
+                # Determine presence
+                base_rate = emp_profile['reliability']
+                if saturday_attendance_rate is not None:
+                    attend_rate = saturday_attendance_rate * base_rate
                 else:
-                    summary_batch.append(
-                        DailyAttendance(
-                            employee=employee,
-                            attendance_date=current_date,
-                            present=False,
-                            worked_minutes=0,
-                        )
-                    )
+                    attend_rate = base_rate
 
+                # Today: ensure high presence for demo purposes
+                is_today = current_date == today
+                if is_today:
+                    attend_rate = max(attend_rate, 0.92)
+
+                present = random.random() < attend_rate
+
+                if not present:
+                    stats['absent'] += 1
+                    # Create absent summary
+                    bs_date = self._compute_bs_date(current_date)
+                    summary_batch.append(DailyAttendance(
+                        employee=emp,
+                        attendance_date=current_date,
+                        attendance_date_bs=bs_date,
+                        present=False,
+                        worked_minutes=0,
+                    ))
+                    continue
+
+                # Build attendance events for this employee-day
+                result = self._build_day_events(
+                    emp, current_date, emp_profile,
+                    is_today=is_today,
+                    is_saturday=(saturday_attendance_rate is not None),
+                )
+
+                stats['present'] += 1
+                stats['late'] += int(result['late'])
+                stats['early'] += int(result['early_departure'])
+                stats['overtime'] += int(result['has_ot'])
+                stats['events'] += len(result['events'])
+
+                event_batch.extend(result['events'])
+                summary_batch.append(result['summary'])
+
+            # Bulk insert
             if event_batch:
-                AttendanceEvent.objects.bulk_create(event_batch, batch_size=1000)
+                AttendanceEvent.objects.bulk_create(event_batch, batch_size=2000)
             if summary_batch:
-                DailyAttendance.objects.bulk_create(summary_batch, batch_size=1000, ignore_conflicts=True)
+                DailyAttendance.objects.bulk_create(
+                    summary_batch, batch_size=2000, ignore_conflicts=True
+                )
 
-        self.stdout.write(
-            f'Created attendance records for {num_days} days ending on {today}. '
-            f'Present: {present_days}, late: {late_days}, early departures: {early_departures}, overtime: {overtime_days}'
+            # Progress indicator
+            if (day_offset + 1) % 30 == 0 or day_offset == num_days - 1:
+                self.stdout.write(f'    ... day {day_offset + 1}/{num_days} ({current_date})')
+
+        return stats
+
+    def _build_day_events(self, employee, attendance_date, profile, is_today=False, is_saturday=False):
+        """Build realistic attendance events for one employee on one day."""
+        dept = employee.department
+        arrival_time = getattr(dept, 'arrival_time', time(9, 0)) or time(9, 0)
+        departure_time = getattr(dept, 'departure_time', time(18, 0)) or time(18, 0)
+
+        # ── Check-in time ──────────────────────────────────────────
+        punctuality = profile['punctuality']
+        # Base: arrive within ±30 min of scheduled time
+        # punctuality < 0 means tends late; > 0 means tends early
+        offset_minutes = int(random.gauss(-punctuality * 10, 12))
+        check_in_dt = timezone.make_aware(
+            datetime.combine(attendance_date, arrival_time)
+        ) + timedelta(minutes=offset_minutes)
+
+        late = check_in_dt > timezone.make_aware(
+            datetime.combine(attendance_date, arrival_time)
         )
-        return {
-            'days_generated': num_days,
-            'present_days': present_days,
-            'late_days': late_days,
-            'early_departures': early_departures,
-            'overtime_days': overtime_days,
-        }
 
-    def _build_attendance_profile(self, attendance_date, today, employee_index=0):
-        is_today = attendance_date == today
-
-        if is_today:
-            present = True
+        # ── Check-out time ─────────────────────────────────────────
+        diligence = profile['diligence']
+        # Stay longer if diligent; base ±20 min around departure
+        depart_offset = int(random.gauss(diligence * 8, 15))
+        if is_saturday:
+            # Half-day Saturday: depart around 13:00
+            check_out_dt = timezone.make_aware(
+                datetime.combine(attendance_date, time(13, 0))
+            ) + timedelta(minutes=random.randint(-15, 30))
         else:
-            present = random.random() < 0.85
+            check_out_dt = timezone.make_aware(
+                datetime.combine(attendance_date, departure_time)
+            ) + timedelta(minutes=depart_offset)
 
-        if not present:
-            return {
-                'present': False,
-                'late_seconds': 0,
-                'early_seconds': 0,
-                'overtime_minutes': 0,
-            }
+        scheduled_departure_dt = timezone.make_aware(
+            datetime.combine(attendance_date, departure_time)
+        )
+        early_departure = check_out_dt < scheduled_departure_dt and not is_saturday
 
-        if is_today and employee_index < 4:
-            scenario = ['late_early', 'late_overtime', 'early_overtime', 'on_time'][employee_index]
-        else:
-            scenario_weights = [
-                ('on_time', 0.28),
-                ('late', 0.18),
-                ('early', 0.18),
-                ('late_early', 0.12),
-                ('overtime', 0.12),
-                ('late_overtime', 0.06),
-                ('early_overtime', 0.03),
-                ('full_day', 0.03),
-            ]
+        # Ensure check_out > check_in
+        if check_out_dt <= check_in_dt:
+            check_out_dt = check_in_dt + timedelta(hours=7)
 
-            if is_today:
-                scenario_weights = [
-                    ('on_time', 0.12),
-                    ('late', 0.20),
-                    ('early', 0.15),
-                    ('late_early', 0.15),
-                    ('overtime', 0.16),
-                    ('late_overtime', 0.10),
-                    ('early_overtime', 0.06),
-                    ('full_day', 0.06),
+        # ── Break ──────────────────────────────────────────────────
+        # Break somewhere in the middle
+        work_span = (check_out_dt - check_in_dt).total_seconds()
+        break_start_offset = random.uniform(0.35, 0.55) * work_span
+        break_out_dt = check_in_dt + timedelta(seconds=break_start_offset)
+        break_duration = random.randint(20, 50)
+        break_in_dt = break_out_dt + timedelta(minutes=break_duration)
+
+        if break_in_dt >= check_out_dt:
+            break_in_dt = check_out_dt - timedelta(minutes=30)
+        if break_out_dt >= break_in_dt:
+            break_out_dt = break_in_dt - timedelta(minutes=25)
+
+        # Sometimes add a second break (15% chance)
+        extra_breaks = []
+        if random.random() < 0.15 and not is_saturday:
+            second_break_out = break_in_dt + timedelta(
+                hours=random.randint(1, 2), minutes=random.randint(0, 30)
+            )
+            second_break_in = second_break_out + timedelta(minutes=random.randint(10, 25))
+            if second_break_in < check_out_dt - timedelta(minutes=30):
+                extra_breaks = [
+                    (AttendanceEvent.BREAK_OUT, second_break_out),
+                    (AttendanceEvent.BREAK_IN, second_break_in),
                 ]
+                break_duration += int((second_break_in - second_break_out).total_seconds() / 60)
 
-            roll = random.random()
-            cumulative = 0.0
-            scenario = 'on_time'
-            for name, weight in scenario_weights:
-                cumulative += weight
-                if roll <= cumulative:
-                    scenario = name
-                    break
+        # ── Overtime ───────────────────────────────────────────────
+        has_ot = False
+        ot_in_dt = None
+        ot_out_dt = None
+        if not is_saturday and diligence > 0.3 and random.random() < 0.25:
+            has_ot = True
+            ot_in_dt = max(check_out_dt, scheduled_departure_dt) + timedelta(minutes=random.randint(5, 20))
+            ot_minutes = random.randint(30, 120)
+            ot_out_dt = ot_in_dt + timedelta(minutes=ot_minutes)
 
-        late_seconds = 0
-        early_seconds = 0
-        overtime_minutes = 0
-
-        if scenario in {'late', 'late_early', 'late_overtime'}:
-            late_seconds = random.randint(10, 95) * 60
-        if scenario in {'early', 'late_early', 'early_overtime'}:
-            early_seconds = random.randint(15, 120) * 60
-        if scenario in {'overtime', 'late_overtime', 'early_overtime'}:
-            overtime_minutes = random.randint(30, 150)
-
-        return {
-            'present': True,
-            'late_seconds': late_seconds,
-            'early_seconds': early_seconds,
-            'overtime_minutes': overtime_minutes,
-        }
-
-    def create_daily_attendance(self, employee, attendance_date, profile=None):
-        """Create a day's worth of attendance events for an employee"""
-        profile = profile or self._build_attendance_profile(attendance_date, attendance_date)
-
-        arrival_time = time(hour=9, minute=0)
-        departure_time = time(hour=18, minute=0)
-        department = getattr(employee, 'department', None)
-        if department is not None:
-            arrival_time = getattr(department, 'arrival_time', arrival_time) or arrival_time
-            departure_time = getattr(department, 'departure_time', departure_time) or departure_time
-
-        arrival_dt = timezone.make_aware(datetime.combine(attendance_date, arrival_time))
-        departure_dt = timezone.make_aware(datetime.combine(attendance_date, departure_time))
-
-        late_seconds = int(profile.get('late_seconds') or 0)
-        early_seconds = int(profile.get('early_seconds') or 0)
-        overtime_minutes = int(profile.get('overtime_minutes') or 0)
-
-        check_in_time = arrival_dt + timedelta(seconds=late_seconds)
-        check_out_time = departure_dt - timedelta(seconds=early_seconds)
-
-        if check_out_time <= check_in_time:
-            check_out_time = check_in_time + timedelta(hours=7, minutes=30)
-
-        break_out_time = check_in_time + timedelta(hours=random.randint(3, 5), minutes=random.randint(0, 30))
-        if break_out_time >= check_out_time:
-            break_out_time = check_in_time + timedelta(hours=4)
-
-        break_in_time = break_out_time + timedelta(minutes=random.randint(20, 60))
-        if break_in_time >= check_out_time:
-            break_in_time = break_out_time + timedelta(minutes=30)
-
-        if overtime_minutes > 0:
-            ot_in_time = max(check_out_time + timedelta(minutes=10), departure_dt + timedelta(minutes=5))
-            ot_out_time = ot_in_time + timedelta(minutes=overtime_minutes)
-        else:
-            ot_in_time = None
-            ot_out_time = None
-
+        # ── Build event list ───────────────────────────────────────
         events = [
             AttendanceEvent(
                 employee=employee,
                 event_type=AttendanceEvent.CHECK_IN,
-                event_time=check_in_time,
-                device_serial=f'DEVICE_{random.randint(1000, 9999)}',
+                event_time=check_in_dt,
+                device_serial='ZK-MAIN-001',
                 source='device',
             ),
             AttendanceEvent(
                 employee=employee,
                 event_type=AttendanceEvent.BREAK_OUT,
-                event_time=break_out_time,
-                device_serial=f'DEVICE_{random.randint(1000, 9999)}',
+                event_time=break_out_dt,
+                device_serial='ZK-MAIN-001',
                 source='device',
             ),
             AttendanceEvent(
                 employee=employee,
                 event_type=AttendanceEvent.BREAK_IN,
-                event_time=break_in_time,
-                device_serial=f'DEVICE_{random.randint(1000, 9999)}',
-                source='device',
-            ),
-            AttendanceEvent(
-                employee=employee,
-                event_type=AttendanceEvent.CHECK_OUT,
-                event_time=check_out_time,
-                device_serial=f'DEVICE_{random.randint(1000, 9999)}',
+                event_time=break_in_dt,
+                device_serial='ZK-MAIN-001',
                 source='device',
             ),
         ]
 
-        if ot_in_time and ot_out_time:
-            events.extend([
-                AttendanceEvent(
-                    employee=employee,
-                    event_type=AttendanceEvent.OT_IN,
-                    event_time=ot_in_time,
-                    device_serial=f'DEVICE_{random.randint(1000, 9999)}',
-                    source='device',
-                ),
-                AttendanceEvent(
-                    employee=employee,
-                    event_type=AttendanceEvent.OT_OUT,
-                    event_time=ot_out_time,
-                    device_serial=f'DEVICE_{random.randint(1000, 9999)}',
-                    source='device',
-                ),
-            ])
+        for evt_type, evt_time in extra_breaks:
+            events.append(AttendanceEvent(
+                employee=employee,
+                event_type=evt_type,
+                event_time=evt_time,
+                device_serial='ZK-MAIN-001',
+                source='device',
+            ))
 
-        break_duration = (break_in_time - break_out_time).total_seconds() // 60
-        total_duration = (check_out_time - check_in_time).total_seconds() // 60
-        worked_minutes = int(total_duration - break_duration + overtime_minutes)
+        # For today, some employees may not have checked out yet
+        if is_today and random.random() < 0.3:
+            # Still at work — no checkout yet
+            last_event_type = events[-1].event_type
+            last_event_time = events[-1].event_time
+            worked_so_far = (timezone.now() - check_in_dt).total_seconds() / 60
+            worked_minutes = max(0, int(worked_so_far - break_duration))
+            check_out_dt = None
+        else:
+            events.append(AttendanceEvent(
+                employee=employee,
+                event_type=AttendanceEvent.CHECK_OUT,
+                event_time=check_out_dt,
+                device_serial='ZK-MAIN-001',
+                source='device',
+            ))
+            last_event_type = AttendanceEvent.CHECK_OUT
+            last_event_time = check_out_dt
+
+            total_minutes = (check_out_dt - check_in_dt).total_seconds() / 60
+            worked_minutes = max(0, int(total_minutes - break_duration))
+
+        if has_ot and ot_in_dt and ot_out_dt:
+            events.append(AttendanceEvent(
+                employee=employee,
+                event_type=AttendanceEvent.OT_IN,
+                event_time=ot_in_dt,
+                device_serial='ZK-MAIN-001',
+                source='device',
+            ))
+            events.append(AttendanceEvent(
+                employee=employee,
+                event_type=AttendanceEvent.OT_OUT,
+                event_time=ot_out_dt,
+                device_serial='ZK-MAIN-001',
+                source='device',
+            ))
+            ot_minutes = int((ot_out_dt - ot_in_dt).total_seconds() / 60)
+            worked_minutes += ot_minutes
+            last_event_type = AttendanceEvent.OT_OUT
+            last_event_time = ot_out_dt
+
+        # ── Build summary ──────────────────────────────────────────
+        bs_date = self._compute_bs_date(attendance_date)
 
         summary = DailyAttendance(
             employee=employee,
             attendance_date=attendance_date,
-            first_check_in=check_in_time,
-            last_check_out=check_out_time,
-            first_ot_in=ot_in_time,
-            last_ot_out=ot_out_time,
-            worked_minutes=worked_minutes,
+            attendance_date_bs=bs_date,
+            first_check_in=check_in_dt,
+            last_check_out=check_out_dt,
+            first_ot_in=ot_in_dt,
+            last_ot_out=ot_out_dt,
+            worked_minutes=max(0, worked_minutes),
             present=True,
-            last_event_type=AttendanceEvent.OT_OUT if ot_out_time else AttendanceEvent.CHECK_OUT,
-            last_event_time=ot_out_time or check_out_time,
+            last_event_type=last_event_type,
+            last_event_time=last_event_time,
         )
 
         return {
             'events': events,
             'summary': summary,
-            'late_seconds': late_seconds,
-            'early_seconds': early_seconds,
-            'overtime_minutes': overtime_minutes,
+            'late': late,
+            'early_departure': early_departure,
+            'has_ot': has_ot,
         }
 
+    def _compute_bs_date(self, ad_date):
+        """Convert AD date to BS and return as a date object for the BS field."""
+        try:
+            from attendance.date_utils import ad_to_bs
+            y, m, d = ad_to_bs(ad_date)
+            return _date(int(y), int(m), int(d))
+        except Exception:
+            return None

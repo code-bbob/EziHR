@@ -514,7 +514,7 @@ class ApiClient {
     hierarchy: () =>
       this.request<{ enterprises: EnterpriseHierarchyItem[] }>('/enterprise/api/hierarchy/'),
 
-    createDepartment: (data: { name: string; branch_id?: number | null; enterprise_id?: number }) =>
+    createDepartment: (data: { name: string; branch_id?: number | null; enterprise_id?: number; arrival_time?: string | null; departure_time?: string | null }) =>
       this.request<any>('/enterprise/api/departments/', {
         method: 'POST',
         body: JSON.stringify(data),

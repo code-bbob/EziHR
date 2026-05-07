@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { PanelLeftIcon } from "lucide-react"
+import { Menu, PanelLeftIcon } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -275,7 +275,7 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      <PanelLeftIcon />
+      <Menu className="h-6 w-6 text-primary shrink-0" />
     </Button>
   )
 }

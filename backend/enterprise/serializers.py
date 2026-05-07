@@ -18,7 +18,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Department
-        fields = ['id', 'name', 'branch', 'created_at']
+        fields = ['id', 'name', 'branch', 'created_at', 'arrival_time', 'departure_time']
 
 
 class EnterpriseHierarchySerializer(serializers.ModelSerializer):

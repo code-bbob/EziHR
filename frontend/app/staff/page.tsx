@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowRight, Building2, ChevronRight, Pencil, Search, ShieldCheck, Users, Loader } from 'lucide-react';
+import { ArrowRight, Building2, ChevronRight, Pencil, Search, ShieldCheck, Users, Loader, RotateCcw } from 'lucide-react';
 
 type StaffItem = {
   id: number;
@@ -231,7 +231,7 @@ export default function StaffPage() {
           </div>
           <div>
             <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-              Manage staff with branch-aware precision.
+              Manage staff with precision.
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
               Browse, inspect, and jump into employee profiles using the branch and department selections from the sidebar.
@@ -258,7 +258,7 @@ export default function StaffPage() {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[28rem]">
-          <Button className="justify-start gap-2 rounded-2xl" onClick={() => {
+          <Button className="justify-center gap-2 rounded-2xl" onClick={() => {
             const params = new URLSearchParams()
             if (selectedBranchId) params.set('branch', String(selectedBranchId))
             if (selectedDepartmentId) params.set('department', String(selectedDepartmentId))
@@ -267,10 +267,11 @@ export default function StaffPage() {
             <ArrowRight className="h-4 w-4" />
             Refresh view
           </Button>
-          <Button variant="outline" className="justify-start gap-2 rounded-2xl" onClick={() => clearFilters()}>
+          <Button variant="outline" className="justify-center gap-2 rounded-2xl" onClick={() => clearFilters()}>
+            <RotateCcw className="h-4 w-4" />
             Reset filters
           </Button>
-          <Button variant="secondary" className="justify-start gap-2 rounded-2xl" onClick={() => router.push('/settings')}>
+          <Button variant="secondary" className="justify-center gap-2 rounded-2xl" onClick={() => router.push('/settings')}>
             <Pencil className="h-4 w-4" />
             Open settings
           </Button>

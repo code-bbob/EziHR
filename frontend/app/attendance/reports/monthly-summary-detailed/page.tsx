@@ -10,15 +10,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { buildCsv, downloadCsv, getRangeDates, triggerPrint } from '@/lib/report-export';
 import { AttendanceReportTabs } from '@/components/attendance-report-tabs';
 import { Input } from '@/components/ui/input';
-import { getDateFormatPreference } from '@/hooks/use-date-format';
+import { AttendanceDateFilter } from '@/components/AttendanceDateFilter';
+
+function padDate(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 
 function getMonthBounds() {
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth(), 1);
   const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   return {
-    startDate: start.toISOString().slice(0, 10),
-    endDate: end.toISOString().slice(0, 10),
+    startDate: padDate(start),
+    endDate: padDate(end),
   };
 }
 
@@ -54,7 +61,7 @@ export default function MonthlySummaryDetailedPage() {
 
   const [startDate, setStartDate] = useState(initialBounds.startDate);
   const [endDate, setEndDate] = useState(initialBounds.endDate);
-  const [dateFormat, setDateFormat] = useState<'ad' | 'bs'>(() => getDateFormatPreference());
+  const [dateFormat, setDateFormat] = useState<'ad' | 'bs'>('ad');
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -133,23 +140,22 @@ export default function MonthlySummaryDetailedPage() {
         <p className="text-sm text-muted-foreground">Filter any date range and export the report as CSV or PDF.</p>
         <AttendanceReportTabs />
 
-        <div className="flex flex-wrap items-center gap-4 py-2 mt-2">
-          <Input 
-            type="date" 
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="w-auto rounded-full bg-white px-4 h-10 border-border/60"
-          />
-          <Input 
-            type="date" 
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="w-auto rounded-full bg-white px-4 h-10 border-border/60"
-          />
+        <AttendanceDateFilter
+          mode="range"
+          initialDateFormat={dateFormat}
+          initialStartDate={startDate}
+          initialEndDate={endDate}
+          applyLabel="Apply Range"
+          onApply={({ startDate: nextStart, endDate: nextEnd, dateFormat: nextFormat }) => {
+            setStartDate(nextStart);
+            setEndDate(nextEnd);
+            setDateFormat(nextFormat);
+            void loadReport(nextStart, nextEnd, nextFormat);
+          }}
+        />
+
+        <div className="flex flex-wrap items-center gap-4 mt-2 print:hidden">
           <div className="ml-auto flex gap-2">
-            <Button variant="default" className="rounded-full bg-zinc-900 px-6 hover:bg-zinc-800 text-white" onClick={() => loadReport()}>
-              Apply
-            </Button>
             <Button variant="outline" className="rounded-full px-6" onClick={handleExportCsv} disabled={!data?.rows?.length}>
               Export CSV
             </Button>
@@ -209,6 +215,7 @@ export default function MonthlySummaryDetailedPage() {
 
                 <TableBody>
                   {data.rows.map((item: any, i: number) => {
+                    console.log(item);
                     const dayValues = (item.days || []).map((day: any) => {
                       if (!day?.present) return 'A';
                       if (day.late_seconds > 0) return 'L';
@@ -220,11 +227,19 @@ export default function MonthlySummaryDetailedPage() {
                       <TableRow key={i}>
                         <TableCell>{i + 1}</TableCell>
                         <TableCell>{item.employee?.name}</TableCell>
-                        {dayValues.map((v: string, j: number) => (
-                          <TableCell key={j} className="text-center">
-                            {v}
-                          </TableCell>
-                        ))}
+                        {dayValues.map((v: string, j: number) => {
+                          let colorClass = '';
+                          if (v === 'P') colorClass = 'text-emerald-600 ';
+                          else if (v === 'A') colorClass = 'text-rose-600 ';
+                          else if (v === 'L') colorClass = 'text-amber-500';
+                          else if (v === 'E') colorClass = 'text-blue-500 ';
+
+                          return (
+                            <TableCell key={j} className={`text-center ${colorClass}`}>
+                              {v}
+                            </TableCell>
+                          );
+                        })}
 
                         <TableCell>{dayValues.filter((v: string) => v !== 'A').length}</TableCell>
                         <TableCell>{dayValues.filter((v: string) => v === 'A').length}</TableCell>

@@ -17,6 +17,8 @@ export function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDepartment
   const [hierarchy, setHierarchy] = useState<EnterpriseHierarchyItem[]>([]);
   const [name, setName] = useState('');
   const [branchId, setBranchId] = useState('');
+  const [arrivalTime, setArrivalTime] = useState('');
+  const [departureTime, setDepartureTime] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,11 +55,16 @@ export function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDepartment
       await apiClient.enterprise.createDepartment({
         name,
         branch_id: branchId ? Number(branchId) : null,
+        arrival_time: arrivalTime ? arrivalTime : null,
+        departure_time: departureTime ? departureTime : null,
       });
       setName('');
       setBranchId('');
+      setArrivalTime('');
+      setDepartureTime('');
       onSuccess();
     } catch (err) {
+      console.log(err);
       setError(err instanceof Error ? err.message : 'Failed to create department');
     } finally {
       setLoading(false);
@@ -123,6 +130,26 @@ export function AddDepartmentModal({ isOpen, onClose, onSuccess }: AddDepartment
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Arrival Time (Optional)</label>
+                <Input
+                  type="time"
+                  value={arrivalTime}
+                  onChange={(e) => setArrivalTime(e.target.value)}
+                  disabled={!userEnterprise || fetching}
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">Departure Time (Optional)</label>
+                <Input
+                  type="time"
+                  value={departureTime}
+                  onChange={(e) => setDepartureTime(e.target.value)}
+                  disabled={!userEnterprise || fetching}
+                />
               </div>
             </CardContent>
           </Card>
