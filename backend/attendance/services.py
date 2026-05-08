@@ -203,12 +203,16 @@ def _build_break_sessions(events) -> list[dict]:
     return sessions
 
 
-def _get_department_schedule(employee: Employee):
+def _get_employee_schedule(employee: Employee):
     from datetime import time as _time
 
+    arrival_time = getattr(employee, 'arrival_time', None)
+    departure_time = getattr(employee, 'departure_time', None)
     department = getattr(employee, 'department', None)
-    arrival_time = getattr(department, 'arrival_time', None) if department else None
-    departure_time = getattr(department, 'departure_time', None) if department else None
+    if arrival_time is None and department:
+        arrival_time = getattr(department, 'arrival_time', None)
+    if departure_time is None and department:
+        departure_time = getattr(department, 'departure_time', None)
     return arrival_time or _time(hour=9, minute=0), departure_time or _time(hour=18, minute=0)
 
 
@@ -217,7 +221,7 @@ def _schedule_datetimes(employee: Employee, attendance_date):
 
     from django.utils import timezone as _tz
 
-    arrival_time, departure_time = _get_department_schedule(employee)
+    arrival_time, departure_time = _get_employee_schedule(employee)
     arrival_dt = _dt.combine(attendance_date, arrival_time)
     departure_dt = _dt.combine(attendance_date, departure_time)
     if _tz.is_naive(arrival_dt):

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.http import HttpRequest, HttpResponse
 from django.db import models
 from django.utils import timezone
@@ -227,6 +229,7 @@ def adms_getrequest(request):
     if command:
         response = f'C:{command.id}:DATA UPDATE USERINFO PIN={command.user_id}\tName={command.name}\tPri=0\tPasswd=\tCard=\t'
         return HttpResponse(response, content_type='text/plain')
+
     return HttpResponse('OK', content_type='text/plain')
 
 

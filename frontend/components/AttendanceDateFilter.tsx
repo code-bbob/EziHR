@@ -74,11 +74,11 @@ function DateField({
         type="button"
         className={cn(
           buttonVariants({ variant: 'outline' }),
-          'h-10 w-full justify-between gap-3 rounded-xl border-border/60 bg-background px-3 text-left text-sm font-normal shadow-sm transition-all hover:border-primary/40 hover:bg-muted/10',
+          'w-full justify-between gap-3 rounded-xl border-border/60 bg-background px-3 text-left text-sm font-normal shadow-sm transition-all hover:border-primary/40 hover:bg-muted/10',
           !value && 'text-muted-foreground'
         )}
       >
-        <span className="truncate text-sm font-medium leading-none text-foreground">{value || placeholder}</span>
+        <span className="truncate text-sm py-2 font-medium leading-none text-foreground">{value || placeholder}</span>
         <CalendarIcon className="size-4 shrink-0 text-muted-foreground" />
       </PopoverTrigger>
       <PopoverContent align="start" className="w-56 rounded-2xl border-border/70 p-2 shadow-lg">

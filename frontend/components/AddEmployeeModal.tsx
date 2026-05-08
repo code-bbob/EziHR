@@ -14,9 +14,10 @@ interface AddEmployeeModalProps {
 }
 
 interface FormState {
-  username: string;
-  password: string;
   email: string;
+  address: string;
+  phone: string;
+  dob: string;
   name: string;
   branch_id: string;
   department_id: string;
@@ -36,9 +37,10 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
   const [hierarchy, setHierarchy] = useState<EnterpriseHierarchyItem[]>([]);
   const [devices, setDevices] = useState<BiometricDeviceOption[]>([]);
   const [formData, setFormData] = useState<FormState>({
-    username: '',
-    password: '',
     email: '',
+    address: '',
+    phone: '',
+    dob: '',
     name: '',
     branch_id: '',
     department_id: '',
@@ -104,12 +106,13 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
       }
 
       const payload = new FormData();
-      payload.append('username', formData.username);
-      payload.append('password', formData.password);
-      payload.append('email', formData.email);
       payload.append('name', formData.name);
       payload.append('enterprise_id', String(userEnterprise.id));
       payload.append('branch_id', formData.branch_id);
+      if (formData.email) payload.append('email', formData.email);
+      if (formData.address) payload.append('address', formData.address);
+      if (formData.phone) payload.append('phone', formData.phone);
+      if (formData.dob) payload.append('dob', formData.dob);
       if (formData.department_id) payload.append('department_id', formData.department_id);
       if (avatarFile) payload.append('avatar', avatarFile);
 
@@ -128,9 +131,10 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
       await apiClient.employees.syncToDevice(employeeId, selectedDevice.serial_number);
 
       setFormData({
-        username: '',
-        password: '',
         email: '',
+        address: '',
+        phone: '',
+        dob: '',
         name: '',
         branch_id: '',
         department_id: '',
@@ -153,7 +157,7 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
         <DialogHeader>
           <DialogTitle>Add Employee</DialogTitle>
           <DialogDescription>
-            Create the user account, employee profile, and sync to biometric device in one step.
+            Create the employee profile and sync it to a biometric device in one step.
           </DialogDescription>
         </DialogHeader>
 
@@ -170,45 +174,12 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6 py-4">
-          {/* User Account Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">User Account</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Username *</label>
-                <Input
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Password *</label>
-                <Input
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Email</label>
-                <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Employee Profile Section */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Employee Profile</CardTitle>
+              <CardDescription>
+                Add the employee's core details and any optional contact information.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -220,7 +191,42 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
                   required
                 />
               </div>
-
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="text-sm font-medium">Email</label>
+                  <Input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Phone</label>
+                  <Input
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Date of Birth</label>
+                  <Input
+                    type="date"
+                    value={formData.dob}
+                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Address</label>
+                  <textarea
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    rows={3}
+                    className="min-h-[4.5rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    placeholder="Optional street address"
+                  />
+                </div>
+              </div>
               <div>
                 <label className="text-sm font-medium">Avatar</label>
                 <Input

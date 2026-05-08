@@ -77,7 +77,7 @@ class DepartmentCreateAPIView(APIView):
         return Response({'message': 'Department created successfully', 'department': DepartmentSerializer(department).data}, status=HTTP_201_CREATED)
 
 class CreateEmployeeAPIView(APIView):
-    """Admin endpoint to create a user and employee at the same time"""
+    """Admin endpoint to create an employee profile."""
     permission_classes = [IsAuthenticated, IsAdminRole]
 
     @transaction.atomic
@@ -93,7 +93,6 @@ class CreateEmployeeAPIView(APIView):
             {
                 'message': 'Employee created successfully',
                 'employee': EmployeeSerializer(employee, context={'request': request}).data,
-                'user': UserSerializer(employee.user, context={'request': request}).data,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -170,6 +169,8 @@ class EmployeeDetailAPIView(APIView):
         employee_code = request.data.get('employee_code')
         branch_id = request.data.get('branch_id')
         department_id = request.data.get('department_id')
+        arrival_time = request.data.get('arrival_time')
+        departure_time = request.data.get('departure_time')
         is_active = request.data.get('is_active')
 
         branch = employee.branch
@@ -218,6 +219,22 @@ class EmployeeDetailAPIView(APIView):
                 employee.is_active = is_active.lower() in ('1', 'true', 'yes', 'on')
             else:
                 employee.is_active = bool(is_active)
+
+        if arrival_time is not None:
+            if arrival_time in ('', None, False):
+                return Response({'error': 'arrival_time cannot be empty. Expected HH:MM'}, status=HTTP_400_BAD_REQUEST)
+            try:
+                employee.arrival_time = datetime.strptime(arrival_time, '%H:%M').time()
+            except Exception:
+                return Response({'error': 'Invalid arrival_time format. Expected HH:MM'}, status=HTTP_400_BAD_REQUEST)
+
+        if departure_time is not None:
+            if departure_time in ('', None, False):
+                return Response({'error': 'departure_time cannot be empty. Expected HH:MM'}, status=HTTP_400_BAD_REQUEST)
+            try:
+                employee.departure_time = datetime.strptime(departure_time, '%H:%M').time()
+            except Exception:
+                return Response({'error': 'Invalid departure_time format. Expected HH:MM'}, status=HTTP_400_BAD_REQUEST)
 
         employee.branch = branch
         employee.department = department
@@ -453,7 +470,7 @@ class EmployeeDeviceSyncAPIView(APIView):
 
 
 class CreateEmployeeAndSyncAPIView(APIView):
-    """Create an employee (with user account) and immediately create a device command for enrollment."""
+    """Create an employee profile and immediately create a device command for enrollment."""
     permission_classes = [IsAuthenticated, IsAdminRole]
 
     @transaction.atomic
@@ -499,7 +516,6 @@ class CreateEmployeeAndSyncAPIView(APIView):
             {
                 'message': 'Employee created successfully. Device sync command created and pending.',
                 'employee': EmployeeSerializer(employee, context={'request': request}).data,
-                'user': UserSerializer(employee.user, context={'request': request}).data,
                 'device_command': DeviceCommandSerializer(command, context={'request': request}).data,
             },
             status=HTTP_201_CREATED,

@@ -9,9 +9,11 @@ backend/*.db
 backend/*.log
 backend/media/
 backend/staticfiles/
+backend/*/migrations/
 backend/.env
 backend/.DS_Store
 backend/data.json
+migrations/
 
 # Node/Next.js
 frontend/node_modules/

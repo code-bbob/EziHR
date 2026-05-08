@@ -111,9 +111,10 @@ class EmployeeCreateAndSyncAPITests(TestCase):
 		response = self.client.post(
 			'/enterprise/api/employees/create/',
 			{
-				'username': 'newhire',
-				'password': 'password123',
 				'email': 'newhire@example.com',
+				'address': '123 Market Street',
+				'phone': '555-0101',
+				'dob': '1994-03-14',
 				'name': 'New Hire',
 				'enterprise_id': self.enterprise.id,
 				'branch_id': self.branch.id,
@@ -123,6 +124,17 @@ class EmployeeCreateAndSyncAPITests(TestCase):
 
 		self.assertEqual(response.status_code, 201)
 		self.assertEqual(response.data['employee']['employee_code'], str(response.data['employee']['id']))
+		self.assertEqual(response.data['employee']['email'], 'newhire@example.com')
+		self.assertEqual(response.data['employee']['address'], '123 Market Street')
+		self.assertEqual(response.data['employee']['phone'], '555-0101')
+		self.assertEqual(response.data['employee']['dob'], '1994-03-14')
+
+		created_employee = Employee.objects.get(name='New Hire')
+		self.assertIsNone(created_employee.user)
+		self.assertEqual(created_employee.email, 'newhire@example.com')
+		self.assertEqual(created_employee.address, '123 Market Street')
+		self.assertEqual(created_employee.phone, '555-0101')
+		self.assertEqual(str(created_employee.dob), '1994-03-14')
 
 	def test_sync_employee_to_device(self):
 		mapping = EmployeeBiometricMapping.objects.create(
