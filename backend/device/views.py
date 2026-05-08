@@ -38,7 +38,7 @@ from .serializers import (
 )
 from .services import sync_employee_to_device
 
-TIME_SYNC_INTERVAL = timedelta(hours=1)
+TIME_SYNC_INTERVAL = timedelta(seconds=1)
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -241,6 +241,7 @@ def adms_getrequest(request):
         timestamp = timezone.localtime(now).strftime('%Y-%m-%d %H:%M:%S')
         command_id = int(now.timestamp())
         response = f'C:{command_id}:SET OPTION DATETIME={timestamp}'
+        print("Sending response: ", response)
         device.last_time_sync_at = now
         device.last_seen_at = now
         device.save(update_fields=['last_time_sync_at', 'last_seen_at'])
