@@ -242,6 +242,9 @@ export default function SettingsPage() {
                     <div className="text-sm text-muted-foreground mt-1">
                       Branch: {emp.branch?.name || '—'} — Department: {emp.department?.name || '—'}
                     </div>
+                    <div className="text-sm text-muted-foreground mt-1">
+                      Arrival: {emp.arrival_time?.slice(0, 5) || '09:00'} — Departure: {emp.departure_time?.slice(0, 5) || '18:00'}
+                    </div>
                   </div>
 
                   <Button size="sm" variant="destructive" onClick={() => handleEmployeeDelete(emp.id)}>Delete</Button>
@@ -272,6 +275,34 @@ export default function SettingsPage() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Employee Working Hours Row */}
+                <div className="flex gap-2 items-center">
+                  <span className="text-sm font-medium min-w-[130px]">Working hours:</span>
+                  <input
+                    type="time"
+                    defaultValue={emp.arrival_time?.slice(0, 5) || ''}
+                    onBlur={(e) => {
+                      const value = e.target.value?.slice(0, 5);
+                      if (value) {
+                        void handleEmployeeAssign(emp.id, { arrival_time: value });
+                      }
+                    }}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  />
+                  <span className="text-sm text-muted-foreground">to</span>
+                  <input
+                    type="time"
+                    defaultValue={emp.departure_time?.slice(0, 5) || ''}
+                    onBlur={(e) => {
+                      const value = e.target.value?.slice(0, 5);
+                      if (value) {
+                        void handleEmployeeAssign(emp.id, { departure_time: value });
+                      }
+                    }}
+                    className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+                  />
                 </div>
 
                 {/* Device Sync Row */}

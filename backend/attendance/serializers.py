@@ -68,9 +68,14 @@ class DailyAttendanceSerializer(serializers.ModelSerializer):
         from datetime import datetime as _dt, time as _time
         from django.utils import timezone as _tz
 
-        department = getattr(obj.employee, 'department', None)
-        arrival_time = getattr(department, 'arrival_time', None) if department else None
-        departure_time = getattr(department, 'departure_time', None) if department else None
+        employee = getattr(obj, 'employee', None)
+        arrival_time = getattr(employee, 'arrival_time', None) if employee else None
+        departure_time = getattr(employee, 'departure_time', None) if employee else None
+        department = getattr(employee, 'department', None) if employee else None
+        if arrival_time is None and department:
+            arrival_time = getattr(department, 'arrival_time', None)
+        if departure_time is None and department:
+            departure_time = getattr(department, 'departure_time', None)
         if arrival_time is None:
             arrival_time = _time(hour=9, minute=0)
         if departure_time is None:

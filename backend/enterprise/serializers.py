@@ -116,7 +116,9 @@ class EmployeeSerializer(serializers.ModelSerializer):
         model = Employee
         fields = [
             'id', 'employee_code', 'name', 'avatar',
-            'enterprise', 'branch', 'department', 'user', 'is_active', 'created_at',
+            'enterprise', 'branch', 'department', 'user',
+            'arrival_time', 'departure_time',
+            'is_active', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
 
@@ -186,6 +188,7 @@ class EmployeeCreateSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         from django.contrib.auth import get_user_model
+        from datetime import time as _time
         from uuid import uuid4
 
         User = get_user_model()
@@ -242,6 +245,8 @@ class EmployeeCreateSerializer(serializers.Serializer):
                 enterprise=enterprise,
                 branch=branch,
                 department=department,
+                arrival_time=department.arrival_time if department and department.arrival_time else _time(hour=9, minute=0),
+                departure_time=department.departure_time if department and department.departure_time else _time(hour=18, minute=0),
                 name=name,
                 employee_code=next_employee_code or f'TEMP-{uuid4().hex[:10].upper()}',
                 avatar=validated_data.pop('avatar', None),

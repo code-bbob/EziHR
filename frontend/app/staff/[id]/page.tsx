@@ -35,6 +35,8 @@ interface EmployeeDetail {
     name: string;
   };
   is_active: boolean;
+  arrival_time?: string;
+  departure_time?: string;
   user?: {
     is_superuser?: boolean;
     is_admin?: boolean;
@@ -140,6 +142,8 @@ export default function StaffDetailPage() {
     employee_code: '',
     branchId: '',
     departmentId: '',
+    arrival_time: '',
+    departure_time: '',
     is_active: true,
   });
 
@@ -179,6 +183,8 @@ export default function StaffDetailPage() {
       employee_code: employee.employee_code || '',
       branchId: employee.branch?.id ? String(employee.branch.id) : '',
       departmentId: employee.department?.id ? String(employee.department.id) : '',
+      arrival_time: employee.arrival_time?.slice(0, 5) || '',
+      departure_time: employee.departure_time?.slice(0, 5) || '',
       is_active: employee.is_active,
     });
   }, [employee]);
@@ -271,6 +277,8 @@ export default function StaffDetailPage() {
         employee_code: editForm.employee_code,
         branch_id: editForm.branchId || null,
         department_id: editForm.departmentId || null,
+        arrival_time: editForm.arrival_time,
+        departure_time: editForm.departure_time,
         is_active: editForm.is_active,
       });
 
@@ -407,6 +415,22 @@ export default function StaffDetailPage() {
                   ))}
                 </select>
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Arrival time</label>
+                <Input
+                  type="time"
+                  value={editForm.arrival_time}
+                  onChange={(event) => setEditForm((current) => ({ ...current, arrival_time: event.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Departure time</label>
+                <Input
+                  type="time"
+                  value={editForm.departure_time}
+                  onChange={(event) => setEditForm((current) => ({ ...current, departure_time: event.target.value }))}
+                />
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <input
@@ -484,6 +508,12 @@ export default function StaffDetailPage() {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Enterprise</p>
                   <p className="text-base text-foreground">{employee.enterprise?.name || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Working Hours</p>
+                  <p className="text-base text-foreground">
+                    {(employee.arrival_time?.slice(0, 5) || '09:00')} - {(employee.departure_time?.slice(0, 5) || '18:00')}
+                  </p>
                 </div>
               </div>
             </div>
