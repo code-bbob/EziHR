@@ -77,7 +77,7 @@ class DepartmentCreateAPIView(APIView):
         return Response({'message': 'Department created successfully', 'department': DepartmentSerializer(department).data}, status=HTTP_201_CREATED)
 
 class CreateEmployeeAPIView(APIView):
-    """Admin endpoint to create a user and employee at the same time"""
+    """Admin endpoint to create an employee profile."""
     permission_classes = [IsAuthenticated, IsAdminRole]
 
     @transaction.atomic
@@ -93,7 +93,6 @@ class CreateEmployeeAPIView(APIView):
             {
                 'message': 'Employee created successfully',
                 'employee': EmployeeSerializer(employee, context={'request': request}).data,
-                'user': UserSerializer(employee.user, context={'request': request}).data,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -453,7 +452,7 @@ class EmployeeDeviceSyncAPIView(APIView):
 
 
 class CreateEmployeeAndSyncAPIView(APIView):
-    """Create an employee (with user account) and immediately create a device command for enrollment."""
+    """Create an employee profile and immediately create a device command for enrollment."""
     permission_classes = [IsAuthenticated, IsAdminRole]
 
     @transaction.atomic
@@ -499,7 +498,6 @@ class CreateEmployeeAndSyncAPIView(APIView):
             {
                 'message': 'Employee created successfully. Device sync command created and pending.',
                 'employee': EmployeeSerializer(employee, context={'request': request}).data,
-                'user': UserSerializer(employee.user, context={'request': request}).data,
                 'device_command': DeviceCommandSerializer(command, context={'request': request}).data,
             },
             status=HTTP_201_CREATED,

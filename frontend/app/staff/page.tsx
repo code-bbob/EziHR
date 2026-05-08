@@ -417,7 +417,7 @@ export default function StaffPage() {
                               {employee.name.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                              <div className="font-semibold text-foreground">{employee.name}</div>
+                              <div className=" text-foreground">{employee.name}</div>
                               <div className="text-xs text-muted-foreground">
                                 {employee.user?.is_admin || employee.user?.is_superuser ? 'Administrator' : 'Staff member'}
                               </div>

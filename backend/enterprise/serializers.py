@@ -4,7 +4,6 @@ from rest_framework import serializers
 from .models import Branch, Department, Enterprise
 from .models import Employee
 from device.models import BiometricDevice, EmployeeBiometricMapping, DeviceCommand
-from userauth.models import UserProfile
 
 
 class BranchSerializer(serializers.ModelSerializer):
@@ -115,7 +114,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Employee
         fields = [
-            'id', 'employee_code', 'name', 'avatar',
+            'id', 'employee_code', 'name', 'avatar', 'email', 'address', 'phone', 'dob',
             'enterprise', 'branch', 'department', 'user', 'is_active', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
@@ -130,9 +129,10 @@ class EmployeeSerializer(serializers.ModelSerializer):
 
 
 class EmployeeCreateSerializer(serializers.Serializer):
-    username = serializers.CharField(max_length=150)
-    password = serializers.CharField(write_only=True, min_length=6)
     email = serializers.EmailField(required=False, allow_blank=True)
+    address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    phone = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
+    dob = serializers.DateField(required=False, allow_null=True)
     employee_code = serializers.CharField(max_length=64, required=False, allow_blank=True)
     name = serializers.CharField(max_length=255)
     avatar = serializers.ImageField(required=False, allow_null=True)
@@ -185,21 +185,19 @@ class EmployeeCreateSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        from django.contrib.auth import get_user_model
         from uuid import uuid4
-
-        User = get_user_model()
 
         enterprise = validated_data.pop('enterprise')
         branch = validated_data.pop('branch')
         department = validated_data.pop('department', None)
         provided_employee_code = validated_data.pop('employee_code', '').strip()
-        
-        # Extract user-related fields
-        username = validated_data.pop('username')
-        password = validated_data.pop('password')
-        email = validated_data.pop('email', '')
         name = validated_data.pop('name')
+        email = validated_data.pop('email', '')
+        address = validated_data.pop('address', '')
+        phone = validated_data.pop('phone', '')
+        dob = validated_data.pop('dob', None)
+        avatar = validated_data.pop('avatar', None)
+        is_active = validated_data.pop('is_active', True)
 
         with transaction.atomic():
             if provided_employee_code:
@@ -224,28 +222,18 @@ class EmployeeCreateSerializer(serializers.Serializer):
                         max_numeric_code = max(max_numeric_code, int(code))
                 next_employee_code = str(max_numeric_code + 1)
 
-            user = User.objects.create_user(
-                username=username,
-                password=password,
-                email=email,
-                name=name,
-            )
-
-            UserProfile.objects.create(
-                user=user,
-                enterprise=enterprise,
-                branch=branch,
-            )
-
             employee = Employee.objects.create(
-                user=user,
                 enterprise=enterprise,
                 branch=branch,
                 department=department,
                 name=name,
                 employee_code=next_employee_code or f'TEMP-{uuid4().hex[:10].upper()}',
-                avatar=validated_data.pop('avatar', None),
-                is_active=validated_data.pop('is_active', True),
+                avatar=avatar,
+                email=email,
+                address=address,
+                phone=phone,
+                dob=dob,
+                is_active=is_active,
             )
 
         return employee

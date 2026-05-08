@@ -18,8 +18,10 @@ interface EmployeeDetail {
   name: string;
   employee_code: string;
   email: string;
+  phone?: string;
   phone_number?: string;
   address?: string;
+  dob?: string;
   date_of_birth?: string;
   department?: {
     id: number;
@@ -416,13 +418,13 @@ export default function StaffDetailPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Phone</p>
-                  <p className="text-base text-foreground">{employee.phone_number || 'N/A'}</p>
+                  <p className="text-base text-foreground">{employee.phone || employee.phone_number || 'N/A'}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Date of Birth</p>
                   <p className="text-base text-foreground">
-                    {employee.date_of_birth
-                      ? new Date(employee.date_of_birth).toLocaleDateString()
+                    {employee.dob || employee.date_of_birth
+                      ? new Date(employee.dob || employee.date_of_birth || '').toLocaleDateString()
                       : 'N/A'}
                   </p>
                 </div>
