@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { apiClient, type EnterpriseHierarchyItem } from '@/lib/api-client';
 // import { getDateFormatPreference } from '@/hooks/use-date-format';
 import { AttendanceDateFilter } from '@/components/AttendanceDateFilter';
+import { buildCsv, downloadCsv, triggerPrint } from '@/lib/report-export';
 
 interface EmployeeDetail {
   id: number;
@@ -47,6 +48,12 @@ interface AttendanceDayReport {
   present?: boolean;
   first_check_in?: string | null;
   last_check_out?: string | null;
+  break_in?: string | null;
+  break_out?: string | null;
+  break_sessions?: Array<{
+    break_out?: string | null;
+    break_in?: string | null;
+  }>;
   late_seconds?: number;
   early_seconds?: number;
   worked_hours?: number;
@@ -86,6 +93,25 @@ function secondsToMinutesLabel(seconds?: number | null) {
   const value = Number(seconds || 0);
   if (!value) return '-';
   return `${(value / 60).toFixed(1)} min`;
+}
+
+function formatBreakSessionLabel(day: AttendanceDayReport, key: 'break_in' | 'break_out') {
+  const directValue = day[key];
+  if (directValue) {
+    return formatTimeLabel(directValue);
+  }
+
+  const sessionValues = (day.break_sessions || [])
+    .map((session) => session?.[key])
+    .filter((value): value is string => Boolean(value))
+    .map((value) => formatTimeLabel(value))
+    .filter((value) => value !== '-');
+
+  if (sessionValues.length === 0) {
+    return '-';
+  }
+
+  return sessionValues.join(', ');
 }
 
 export default function StaffDetailPage() {
@@ -214,8 +240,25 @@ export default function StaffDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staffId]);
 
-  const applyDateFilter = async () => {
-    await loadAttendance();
+  const handleExportCsv = () => {
+    if (!employeeDays.length) return;
+
+    const csv = buildCsv([
+      ['Date', 'Status', 'Check In', 'Check Out', 'Break Out', 'Break In', 'Late By', 'Early By', 'Worked Hours'],
+      ...employeeDays.map((day) => [
+        formatDateLabel(day, dateFormat),
+        day.present ? 'Present' : 'Absent',
+        formatTimeLabel(day.first_check_in),
+        formatTimeLabel(day.last_check_out),
+        formatBreakSessionLabel(day, 'break_out'),
+        formatBreakSessionLabel(day, 'break_in'),
+        secondsToMinutesLabel(day.late_seconds),
+        secondsToMinutesLabel(day.early_seconds),
+        Number(day.worked_hours || 0).toFixed(2),
+      ]),
+    ]);
+
+    downloadCsv(`staff-${staffId}-attendance-${reportStartDate}-to-${reportEndDate}.csv`, csv);
   };
 
   const handleSaveEmployee = async () => {
@@ -521,6 +564,24 @@ export default function StaffDetailPage() {
                   }}
                 />
               </div>
+            <div className="flex flex-wrap items-center gap-2 print:hidden">
+              <div className="ml-auto flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleExportCsv}
+                  disabled={!employeeDays.length || attendanceLoading}
+                >
+                  Export CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={triggerPrint}
+                  disabled={!employeeDays.length || attendanceLoading}
+                >
+                  Export PDF
+                </Button>
+              </div>
+            </div>
 
             {attendanceLoading ? (
               <div className="space-y-2">
@@ -540,6 +601,8 @@ export default function StaffDetailPage() {
                       <TableHead>Status</TableHead>
                       <TableHead>Check In</TableHead>
                       <TableHead>Check Out</TableHead>
+                      <TableHead>Break Out</TableHead>
+                      <TableHead>Break In</TableHead>
                       <TableHead>Late By</TableHead>
                       <TableHead>Early By</TableHead>
                       <TableHead>Worked Hours</TableHead>
@@ -556,6 +619,8 @@ export default function StaffDetailPage() {
                         </TableCell>
                         <TableCell>{formatTimeLabel(day.first_check_in)}</TableCell>
                         <TableCell>{formatTimeLabel(day.last_check_out)}</TableCell>
+                        <TableCell>{formatBreakSessionLabel(day, 'break_out')}</TableCell>
+                        <TableCell>{formatBreakSessionLabel(day, 'break_in')}</TableCell>
                         <TableCell>{secondsToMinutesLabel(day.late_seconds)}</TableCell>
                         <TableCell>{secondsToMinutesLabel(day.early_seconds)}</TableCell>
                         <TableCell>{Number(day.worked_hours || 0).toFixed(2)}</TableCell>
