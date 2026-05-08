@@ -170,7 +170,8 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://192.168.1.155:3000',  # Add your local network IP if needed
-    'https://ezi-hajir.vercel.app',
+    'https://www.ezi-hajir.vercel.app',
+    'https://www.ezihajir.com'
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -206,7 +207,7 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
     "ezihajir.dgtech.com.np",
     '5.223.67.109',
-    "https://ezi-hajir.vercel.app",
+    "https://www.ezi-hajir.vercel.app",
     "*"
 
 ]
