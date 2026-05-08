@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import timedelta
+
 from django.http import HttpRequest, HttpResponse
 from django.db import models
 from django.utils import timezone
@@ -35,6 +37,8 @@ from .serializers import (
     EmployeeBiometricMappingSerializer,
 )
 from .services import sync_employee_to_device
+
+TIME_SYNC_INTERVAL = timedelta(seconds=1)
 
 
 class CsrfExemptSessionAuthentication(SessionAuthentication):
@@ -223,10 +227,28 @@ def adms_getrequest(request):
     except BiometricDevice.DoesNotExist:
         return HttpResponse('ERROR', status=400)
 
+    now = timezone.now()
     command = DeviceCommand.objects.filter(device=device, status='pending').first()
     if command:
         response = f'C:{command.id}:DATA UPDATE USERINFO PIN={command.user_id}\tName={command.name}\tPri=0\tPasswd=\tCard=\t'
         return HttpResponse(response, content_type='text/plain')
+
+    # Keep device clock close to server time without flooding commands.
+    if (
+        device.last_time_sync_at is None
+        or (now - device.last_time_sync_at) >= TIME_SYNC_INTERVAL
+    ):
+        timestamp = timezone.localtime(now).strftime('%Y-%m-%d %H:%M:%S')
+        command_id = int(now.timestamp())
+        response = f'C:{command_id}:SET OPTION DATETIME={timestamp}'
+        print("Sending response: ", response)
+        device.last_time_sync_at = now
+        device.last_seen_at = now
+        device.save(update_fields=['last_time_sync_at', 'last_seen_at'])
+        return HttpResponse(response, content_type='text/plain')
+
+    device.last_seen_at = now
+    device.save(update_fields=['last_seen_at'])
     return HttpResponse('OK', content_type='text/plain')
 
 

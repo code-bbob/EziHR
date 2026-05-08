@@ -304,6 +304,8 @@ export interface EnterpriseHierarchyItem {
     id: number;
     name: string;
     branch: EnterpriseBranchDepartment | null;
+    arrival_time?: string | null;
+    departure_time?: string | null;
     created_at?: string;
   }>;
 }

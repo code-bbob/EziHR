@@ -82,6 +82,8 @@ class Employee(models.Model):
         null=True,
         related_name='employees',
     )
+    arrival_time = models.TimeField(default=_time(hour=9, minute=0))
+    departure_time = models.TimeField(default=_time(hour=18, minute=0))
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

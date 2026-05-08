@@ -226,6 +226,8 @@ class EmployeeCreateSerializer(serializers.Serializer):
                 enterprise=enterprise,
                 branch=branch,
                 department=department,
+                arrival_time=department.arrival_time if department and department.arrival_time else _time(hour=9, minute=0),
+                departure_time=department.departure_time if department and department.departure_time else _time(hour=18, minute=0),
                 name=name,
                 employee_code=next_employee_code or f'TEMP-{uuid4().hex[:10].upper()}',
                 avatar=avatar,

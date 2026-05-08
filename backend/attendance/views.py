@@ -33,7 +33,7 @@ from .services import (
     get_early_departures,
 )
 from .serializers import DailyAttendanceSerializer
-from .models import DailyAttendance
+from .models import DailyAttendance, AttendanceEvent
 from enterprise.models import Employee, Enterprise, Branch, Department
 import calendar
 from rest_framework import status
@@ -1175,6 +1175,8 @@ class MonthlySummaryDetailedAPIView(APIView):
         if employee_id:
             employees = employees.filter(id=employee_id)
 
+        employee_ids = list(employees.values_list('id', flat=True))
+
         summaries = DailyAttendance.objects.filter(
             attendance_date__range=(start, end),
             employee__enterprise=enterprise,
@@ -1184,6 +1186,19 @@ class MonthlySummaryDetailedAPIView(APIView):
         by_emp = {}
         for s in summaries:
             by_emp.setdefault(s.employee_id, {})[str(s.attendance_date)] = DailyAttendanceSerializer(s).data
+
+        events_by_emp_date: dict[int, dict[str, list[AttendanceEvent]]] = {}
+        if employee_ids:
+            attendance_events = (
+                AttendanceEvent.objects.filter(
+                    employee_id__in=employee_ids,
+                    event_time__date__range=(start, end),
+                )
+                .order_by('event_time', 'id')
+            )
+            for event in attendance_events:
+                event_day = timezone.localtime(event.event_time).date()
+                events_by_emp_date.setdefault(event.employee_id, {}).setdefault(str(event_day), []).append(event)
 
         days = []
         current_day = start
@@ -1197,11 +1212,57 @@ class MonthlySummaryDetailedAPIView(APIView):
             day_entries = []
             for day_value in days:
                 entry = emp_days.get(str(day_value))
+                day_events = events_by_emp_date.get(emp.id, {}).get(str(day_value), [])
+                break_sessions = []
+                current_break_out = None
+                for event in day_events:
+                    if event.event_type == AttendanceEvent.BREAK_OUT:
+                        if current_break_out is not None:
+                            break_sessions.append({'break_out': current_break_out, 'break_in': None})
+                        current_break_out = event.event_time
+                    elif event.event_type == AttendanceEvent.BREAK_IN:
+                        if current_break_out is not None:
+                            break_sessions.append({'break_out': current_break_out, 'break_in': event.event_time})
+                            current_break_out = None
+                        else:
+                            break_sessions.append({'break_out': None, 'break_in': event.event_time})
+
+                if current_break_out is not None:
+                    break_sessions.append({'break_out': current_break_out, 'break_in': None})
+
+                first_break_out = next((session.get('break_out') for session in break_sessions if session.get('break_out')), None)
+                last_break_in = next((session.get('break_in') for session in reversed(break_sessions) if session.get('break_in')), None)
+
                 if entry:
-                    day_entries.append(entry)
+                    day_entries.append({
+                        **entry,
+                        'break_out': _dt_iso(first_break_out),
+                        'break_in': _dt_iso(last_break_in),
+                        'break_sessions': [
+                            {
+                                'break_out': _dt_iso(session.get('break_out')),
+                                'break_in': _dt_iso(session.get('break_in')),
+                            }
+                            for session in break_sessions
+                        ],
+                    })
                 else:
                     ad, bs = _format_ad_bs(day_value)
-                    day_entries.append({'attendance_date': ad, 'attendance_date_ad': ad, 'attendance_date_bs': bs, 'present': False})
+                    day_entries.append({
+                        'attendance_date': ad,
+                        'attendance_date_ad': ad,
+                        'attendance_date_bs': bs,
+                        'present': False,
+                        'break_out': _dt_iso(first_break_out),
+                        'break_in': _dt_iso(last_break_in),
+                        'break_sessions': [
+                            {
+                                'break_out': _dt_iso(session.get('break_out')),
+                                'break_in': _dt_iso(session.get('break_in')),
+                            }
+                            for session in break_sessions
+                        ],
+                    })
 
             rows.append({
                 'employee': {'id': emp.id, 'name': emp.name, 'employee_code': emp.employee_code},

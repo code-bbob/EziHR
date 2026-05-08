@@ -26,6 +26,7 @@ class BiometricDevice(models.Model):
     device_model = models.CharField(max_length=255, blank=True, default='')
     is_active = models.BooleanField(default=True)
     last_seen_at = models.DateTimeField(blank=True, null=True)
+    last_time_sync_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
