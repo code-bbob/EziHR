@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useApi } from '@/lib/hooks/useApi';
 import { apiClient, type DashboardData, type HierarchicalDashboardData, type BranchDashboardData, type DepartmentDashboardData, type LateArrivalItem, type EarlyDepartureItem } from '@/lib/api-client';
@@ -58,8 +58,19 @@ export default function HomePage() {
     return /not found|404|does not exist/i.test(message);
   };
   
+  const fetchDashboardAttendance = useCallback(
+    () =>
+      apiClient.dashboard.getAttendance(
+        hierarchicalSelectedBranchId,
+        hierarchicalSelectedDepartmentId,
+        dateFormat
+      ),
+    [hierarchicalSelectedBranchId, hierarchicalSelectedDepartmentId, dateFormat]
+  );
+
   const { data, loading, error, refetch } = useApi<DashboardData>(
-    () => apiClient.dashboard.getAttendance(undefined, undefined, dateFormat)
+    fetchDashboardAttendance,
+    [fetchDashboardAttendance]
   );
 
   useEffect(() => {
