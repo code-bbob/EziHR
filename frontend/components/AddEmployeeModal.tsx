@@ -18,6 +18,8 @@ interface FormState {
   address: string;
   phone: string;
   dob: string;
+  arrival_time: string;
+  departure_time: string;
   name: string;
   branch_id: string;
   department_id: string;
@@ -41,6 +43,8 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
     address: '',
     phone: '',
     dob: '',
+    arrival_time: '',
+    departure_time: '',
     name: '',
     branch_id: '',
     department_id: '',
@@ -113,6 +117,8 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
       if (formData.address) payload.append('address', formData.address);
       if (formData.phone) payload.append('phone', formData.phone);
       if (formData.dob) payload.append('dob', formData.dob);
+      if (formData.arrival_time) payload.append('arrival_time', formData.arrival_time);
+      if (formData.departure_time) payload.append('departure_time', formData.departure_time);
       if (formData.department_id) payload.append('department_id', formData.department_id);
       if (avatarFile) payload.append('avatar', avatarFile);
 
@@ -135,6 +141,8 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
         address: '',
         phone: '',
         dob: '',
+        arrival_time: '',
+        departure_time: '',
         name: '',
         branch_id: '',
         department_id: '',
@@ -224,6 +232,22 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
                     rows={3}
                     className="min-h-[4.5rem] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     placeholder="Optional street address"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Arrival Time</label>
+                  <Input
+                    type="time"
+                    value={formData.arrival_time}
+                    onChange={(e) => setFormData({ ...formData, arrival_time: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Departure Time</label>
+                  <Input
+                    type="time"
+                    value={formData.departure_time}
+                    onChange={(e) => setFormData({ ...formData, departure_time: e.target.value })}
                   />
                 </div>
               </div>
