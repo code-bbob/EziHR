@@ -1,5 +1,6 @@
 from django.db import transaction
 from rest_framework import serializers
+from datetime import time as _time
 
 from .models import Branch, Department, Enterprise
 from .models import Employee
@@ -18,7 +19,7 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Department
-        fields = ['id', 'name', 'branch', 'created_at', 'arrival_time', 'departure_time']
+        fields = ['id', 'name', 'branch', 'created_at']
 
 
 class EnterpriseHierarchySerializer(serializers.ModelSerializer):
@@ -116,7 +117,7 @@ class EmployeeSerializer(serializers.ModelSerializer):
         model = Employee
         fields = [
             'id', 'employee_code', 'name', 'avatar', 'email', 'address', 'phone', 'dob',
-            'enterprise', 'branch', 'department', 'user', 'is_active', 'created_at',
+            'enterprise', 'branch', 'department', 'user', 'arrival_time', 'departure_time', 'is_active', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
 
@@ -134,6 +135,8 @@ class EmployeeCreateSerializer(serializers.Serializer):
     address = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     phone = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=20)
     dob = serializers.DateField(required=False, allow_null=True)
+    arrival_time = serializers.TimeField(required=False, allow_null=True)
+    departure_time = serializers.TimeField(required=False, allow_null=True)
     employee_code = serializers.CharField(max_length=64, required=False, allow_blank=True)
     name = serializers.CharField(max_length=255)
     avatar = serializers.ImageField(required=False, allow_null=True)
@@ -197,6 +200,8 @@ class EmployeeCreateSerializer(serializers.Serializer):
         address = validated_data.pop('address', '')
         phone = validated_data.pop('phone', '')
         dob = validated_data.pop('dob', None)
+        arrival_time = validated_data.pop('arrival_time', None)
+        departure_time = validated_data.pop('departure_time', None)
         avatar = validated_data.pop('avatar', None)
         is_active = validated_data.pop('is_active', True)
 
@@ -227,8 +232,8 @@ class EmployeeCreateSerializer(serializers.Serializer):
                 enterprise=enterprise,
                 branch=branch,
                 department=department,
-                arrival_time=department.arrival_time if department and department.arrival_time else _time(hour=9, minute=0),
-                departure_time=department.departure_time if department and department.departure_time else _time(hour=18, minute=0),
+                arrival_time=arrival_time if arrival_time else _time(hour=9, minute=0),
+                departure_time=departure_time if departure_time else _time(hour=18, minute=0),
                 name=name,
                 employee_code=next_employee_code or f'TEMP-{uuid4().hex[:10].upper()}',
                 avatar=avatar,

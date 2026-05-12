@@ -116,7 +116,7 @@ export function Navbar({ title = 'EziHR', subtitle, infoItems = [] }: NavbarProp
                   </DropdownMenuLabel>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer" onClick={() => router.push('/dashboard')}>
+                <DropdownMenuItem className="cursor-pointer" onClick={() => router.push('/')}>
                   <LayoutDashboard className="mr-2 h-4 w-4 text-muted-foreground" />
                   <span>Dashboard</span>
                 </DropdownMenuItem>
