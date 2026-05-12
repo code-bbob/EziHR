@@ -4,6 +4,7 @@ from rest_framework import serializers
 from .models import Branch, Department, Enterprise
 from .models import Employee
 from device.models import BiometricDevice, EmployeeBiometricMapping, DeviceCommand
+from datetime import time as _time
 
 
 class BranchSerializer(serializers.ModelSerializer):
