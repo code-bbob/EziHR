@@ -123,9 +123,16 @@ def resolve_employee(identifier: object | None, device_serial: object | None = N
     if not normalized:
         return None
 
+    device_enterprise_id = None
     if device_serial not in (None, ''):
         device_serial_normalized = str(device_serial).strip()
         if device_serial_normalized:
+            try:
+                device_obj = BiometricDevice.objects.get(serial_number=device_serial_normalized)
+                device_enterprise_id = device_obj.enterprise_id
+            except BiometricDevice.DoesNotExist:
+                pass
+
             mapped_employee = (
                 EmployeeBiometricMapping.objects.select_related('employee')
                 .filter(device__serial_number=device_serial_normalized, device_user_id=normalized)
@@ -137,14 +144,14 @@ def resolve_employee(identifier: object | None, device_serial: object | None = N
                 if employee:
                     return employee
 
-    lookup_fields = [
-        {'employee_code': normalized},
-    ]
-
-    for lookup in lookup_fields:
-        employee = Employee.objects.filter(**lookup).first()
+    if device_enterprise_id is not None:
+        employee = Employee.objects.filter(employee_code=normalized, enterprise_id=device_enterprise_id).first()
         if employee:
             return employee
+
+    employee = Employee.objects.filter(employee_code=normalized).first()
+    if employee:
+        return employee
     return None
 
 
