@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { useFilters } from '@/hooks/useFilters';
+import { useDateFormatPreference } from '@/hooks/use-date-format';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -10,6 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AttendanceReportTabs } from '@/components/attendance-report-tabs';
 import { AttendanceDateFilter } from '@/components/AttendanceDateFilter';
 import { DateFormatBadge } from '@/components/DateDisplay';
+import { buildCsv, downloadCsv } from '@/lib/report-export';
+import { buildLateArrivalsPdf } from '@/lib/pdf-export';
 
 function getToday() {
   const now = new Date();
@@ -21,15 +24,16 @@ function getToday() {
 
 export default function LateArrivalsReport() {
   const { selectedBranchId, selectedDepartmentId } = useFilters();
+  const { dateFormat, loading: datePrefLoading } = useDateFormatPreference();
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attendanceDate, setAttendanceDate] = useState(getToday());
-  const [dateFormat, setDateFormat] = useState<'ad' | 'bs'>('ad');
+  const [currentDateFormat, setCurrentDateFormat] = useState<'ad' | 'bs'>(dateFormat);
 
   const reportLabel = useMemo(() => attendanceDate, [attendanceDate]);
 
-  const loadReport = useCallback(async (nextDate = attendanceDate, nextFormat = dateFormat) => {
+  const loadReport = useCallback(async (nextDate = attendanceDate, nextFormat = currentDateFormat) => {
     setLoading(true);
     setError(null);
 
@@ -43,11 +47,17 @@ export default function LateArrivalsReport() {
     } finally {
       setLoading(false);
     }
-  }, [attendanceDate, dateFormat, selectedBranchId, selectedDepartmentId]);
+  }, [attendanceDate, currentDateFormat, selectedBranchId, selectedDepartmentId]);
 
   useEffect(() => {
+    if (datePrefLoading) return;
     loadReport();
-  }, [loadReport]);
+  }, [loadReport, datePrefLoading]);
+
+  // Update currentDateFormat when enterprise preference changes
+  useEffect(() => {
+    setCurrentDateFormat(dateFormat);
+  }, [dateFormat]);
 
   return (
     <div className="w-full flex-1 min-w-0 px-4 py-6 sm:px-6 lg:px-8 xl:px-10">
@@ -60,12 +70,12 @@ export default function LateArrivalsReport() {
 
         <AttendanceDateFilter
           mode="single"
-          initialDateFormat={dateFormat}
+          initialDateFormat={currentDateFormat}
           initialDate={attendanceDate}
           applyLabel="Apply Date"
           onApply={({ startDate: nextDate, dateFormat: nextFormat }) => {
             setAttendanceDate(nextDate);
-            setDateFormat(nextFormat);
+            setCurrentDateFormat(nextFormat);
             void loadReport(nextDate, nextFormat);
           }}
         />
@@ -80,6 +90,38 @@ export default function LateArrivalsReport() {
             <div className="flex items-center gap-3">
               <span className="text-sm font-normal text-muted-foreground">{reportLabel}</span>
               <DateFormatBadge format={dateFormat} />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (!data?.late_arrivals?.length) return;
+                  const csv = buildCsv([
+                    ['S.N.', 'Employee', 'Scheduled Time', 'Actual Time', 'Delay (min)'],
+                    ...data.late_arrivals.map((item: any, idx: number) => [
+                      idx + 1,
+                      item.employee?.name || 'Unknown',
+                      item.scheduled_arrival ? new Date(item.scheduled_arrival).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-',
+                      item.check_in ? new Date(item.check_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '-',
+                      item.late_minutes || '-',
+                    ]),
+                  ]);
+                  downloadCsv(`late-arrivals-${attendanceDate}.csv`, csv);
+                }}
+                disabled={!data?.late_arrivals?.length}
+              >
+                Export CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (!data?.late_arrivals?.length) return;
+                  buildLateArrivalsPdf(data.late_arrivals, attendanceDate, `late-arrivals-${attendanceDate}.pdf`);
+                }}
+                disabled={!data?.late_arrivals?.length}
+              >
+                Export PDF
+              </Button>
               <Button onClick={() => loadReport()} className="sm:shrink-0">Refresh</Button>
             </div>
           </CardTitle>

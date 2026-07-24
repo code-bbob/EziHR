@@ -45,10 +45,13 @@ class CsrfExemptSessionAuthentication(SessionAuthentication):
 
 
 class PlainTextParser(BaseParser):
-    media_type = 'text/plain'
+    """A permissive parser that accepts any media type, including when
+    devices send no Content-Type header at all.
+    """
+    media_type = '*/*'
 
     def parse(self, stream, media_type=None, parser_context=None):
-        return stream.read().decode('utf-8')
+        return stream.read().decode('utf-8', errors='ignore')
 
 
 def _plain_text_response(message: str) -> HttpResponse:

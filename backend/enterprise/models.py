@@ -6,6 +6,11 @@ from datetime import time as _time
 # Create your models here.
 
 class Enterprise(models.Model):
+    DATE_FORMAT_CHOICES = [
+        ('ad', 'Gregorian (AD)'),
+        ('bs', 'Nepali (BS)'),
+    ]
+    
     name = models.CharField(max_length=255)
     address = models.TextField(blank=True, null=True)
     contact_email = models.EmailField(blank=True, null=True)
@@ -14,6 +19,12 @@ class Enterprise(models.Model):
     licensed = models.BooleanField(default=False)
     licensed_until = models.DateField(blank=True, null=True)
     max_alowed_employees = models.PositiveIntegerField(default=0)
+    date_format_preference = models.CharField(
+        max_length=2,
+        choices=DATE_FORMAT_CHOICES,
+        default='ad',
+        help_text='Preferred date format for attendance and reports'
+    )
 
     class Meta:
         ordering = ['name']

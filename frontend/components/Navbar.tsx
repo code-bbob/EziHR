@@ -61,7 +61,7 @@ export function Navbar({ title = 'EziHR', subtitle, infoItems = [] }: NavbarProp
 
   return (
     <nav className="sticky top-0 py-2.5 z-50 w-full border-b border-border/90 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-3 px-3 sm:px-4">
+      <div className=" flex h-16 w-full items-center gap-3 px-3 sm:px-4">
         <div className="flex items-center gap-2 min-w-0">
           <div className="md:hidden">
             <SidebarTrigger aria-label="Toggle navigation" />

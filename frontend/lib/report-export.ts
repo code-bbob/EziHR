@@ -71,11 +71,34 @@ export function getRangeDates(startDate: string, endDate: string, dateFormat: 'a
   while (current <= end) {
     if (dateFormat === 'bs') {
       const bsDate = adToBS(current);
-      dates.push(formatBSDate(bsDate.year, bsDate.month, bsDate.day));
+      const formattedBS = formatBSDate(bsDate.year, bsDate.month, bsDate.day);
+      // Ensure we don't exceed the end date in BS format
+      if (formattedBS <= endDate) {
+        dates.push(formattedBS);
+      }
     } else {
       dates.push(formatLocalDate(current));
     }
     current.setDate(current.getDate() + 1);
+  }
+
+  // If conversion missed the exact requested endDate (possible when BS conversion
+  // rounds to next month for certain years), ensure the requested endDate is
+  // included for BS ranges.
+  if (dateFormat === 'bs' && dates.length > 0) {
+    const last = dates[dates.length - 1];
+    if (last !== endDate) {
+      // Only append if endDate is after the last generated (to avoid duplicates)
+      const lastParts = parseDateParts(last);
+      const endParts = parseDateParts(endDate);
+      if (lastParts && endParts) {
+        const lastNum = lastParts.year * 10000 + lastParts.month * 100 + lastParts.day;
+        const endNum = endParts.year * 10000 + endParts.month * 100 + endParts.day;
+        if (endNum > lastNum) {
+          dates.push(endDate);
+        }
+      }
+    }
   }
 
   return dates;

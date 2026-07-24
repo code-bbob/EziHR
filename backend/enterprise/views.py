@@ -57,6 +57,30 @@ class EnterpriseHierarchyAPIView(APIView):
         return Response({'enterprises': serializer.data})
 
 
+class EnterpriseUpdatePreferenceAPIView(APIView):
+    """Update enterprise date format preference"""
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, enterprise_id):
+        enterprise = _resolve_user_enterprise(request.user)
+        if enterprise is None or enterprise.id != enterprise_id:
+            return Response({'error': 'Not authorized to update this enterprise'}, status=HTTP_403_FORBIDDEN)
+
+        date_format_preference = request.data.get('date_format_preference')
+        if date_format_preference not in ('ad', 'bs'):
+            return Response({'error': 'Invalid date_format_preference. Must be "ad" or "bs"'}, status=HTTP_400_BAD_REQUEST)
+
+        enterprise.date_format_preference = date_format_preference
+        enterprise.save(update_fields=['date_format_preference'])
+
+        from .serializers import EnterpriseDetailSerializer
+        serializer = EnterpriseDetailSerializer(enterprise)
+        return Response({
+            'message': 'Enterprise date format preference updated successfully',
+            'enterprise': serializer.data
+        })
+
+
 class DepartmentCreateAPIView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 

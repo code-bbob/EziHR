@@ -4,6 +4,7 @@ from .views import (
     DepartmentCreateAPIView,
     DepartmentDetailAPIView,
     EnterpriseHierarchyAPIView,
+    EnterpriseUpdatePreferenceAPIView,
     CreateEmployeeAPIView,
     ListEmployeesAPIView,
     EmployeeDetailAPIView,
@@ -15,6 +16,7 @@ app_name = 'enterprise'
 
 urlpatterns = [
     path('api/hierarchy/', EnterpriseHierarchyAPIView.as_view(), name='hierarchy'),
+    path('api/enterprise/<int:enterprise_id>/update-preference/', EnterpriseUpdatePreferenceAPIView.as_view(), name='update_preference'),
     path('api/departments/', DepartmentCreateAPIView.as_view(), name='create_department'),
     path('api/departments/<int:department_id>/', DepartmentDetailAPIView.as_view(), name='department_detail'),
 

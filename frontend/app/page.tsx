@@ -9,7 +9,7 @@ import { AddEmployeeModal } from '@/components/AddEmployeeModal';
 import { AddDepartmentModal } from '@/components/AddDepartmentModal';
 import { useFilters } from '@/hooks/useFilters';
 import { useRightSidebar } from '@/hooks/useRightSidebar';
-import { getDateFormatPreference } from '@/hooks/use-date-format';
+import { useDateFormatPreference } from '@/hooks/use-date-format';
 
 // shadcn UI Components
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,7 +30,7 @@ type HierarchicalViewData = HierarchicalDashboardData | BranchDashboardData | De
 export default function HomePage() {
   const { user, loading: authLoading, isAuthenticated } = useAuth();
   const router = useRouter();
-  const [dateFormat] = useState(() => getDateFormatPreference());
+  const { dateFormat } = useDateFormatPreference();
   const [showAddEmployeeModal, setShowAddEmployeeModal] = useState(false);
   const [showAddDepartmentModal, setShowAddDepartmentModal] = useState(false);
   const { isOpen: isRightSidebarOpen, toggle: toggleRightSidebar } = useRightSidebar();

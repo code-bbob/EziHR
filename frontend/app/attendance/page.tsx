@@ -6,7 +6,12 @@ import { useApi } from '@/lib/hooks/useApi';
 import { apiClient, type DashboardData } from '@/lib/api-client';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { useFilters } from '@/hooks/useFilters';
-import { getDateFormatPreference } from '@/hooks/use-date-format';
+import { useDateFormatPreference } from '@/hooks/use-date-format';
+import { adToBS } from '@/lib/date-utils';
+import { buildCsv, downloadCsv } from '@/lib/report-export';
+import { buildDailyAttendancePdf } from '@/lib/pdf-export';
+import { AttendanceDateFilter } from '@/components/AttendanceDateFilter';
+import { DateFormatBadge } from '@/components/DateDisplay';
 
 // shadcn UI Components
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,6 +47,26 @@ const formatTime = (value?: string | null) =>
         minute: '2-digit',
       })
     : '-';
+
+/**
+ * Get today's date formatted as YYYY-MM-DD in the specified format
+ * If dateFormat is 'bs', converts today's AD date to Nepali calendar
+ */
+const getTodayInFormat = (dateFormat: 'ad' | 'bs'): string => {
+  const today = new Date();
+  
+  if (dateFormat === 'bs') {
+    // Convert AD date to BS
+    const { year, month, day } = adToBS(today);
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  }
+  
+  // AD format
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const getBreakSessions = (row: AttendanceRow): BreakSession[] => {
   if (Array.isArray(row.break_sessions) && row.break_sessions.length > 0) {
@@ -91,7 +116,7 @@ const applyBreakEventToSessions = (
 function AttendanceContent() {
   const { loading: authLoading, isAuthenticated } = useAuth();
   const router = useRouter();
-  const [dateFormat] = useState(() => getDateFormatPreference());
+  const { dateFormat, loading: prefLoading } = useDateFormatPreference();
 
   const { 
     selectedBranchId, 
@@ -100,9 +125,12 @@ function AttendanceContent() {
     setDepartment
   } = useFilters();
 
+  const [attendanceDate, setAttendanceDate] = useState(getTodayInFormat(dateFormat));
+  const [currentDateFormat, setCurrentDateFormat] = useState<'ad' | 'bs'>(dateFormat);
+
   const { data, loading } = useApi<DashboardData>(
-    () => apiClient.dashboard.getAttendance(selectedBranchId, selectedDepartmentId, dateFormat),
-    [selectedBranchId, selectedDepartmentId, dateFormat]
+    () => apiClient.dashboard.getAttendance(selectedBranchId, selectedDepartmentId, currentDateFormat, attendanceDate),
+    [selectedBranchId, selectedDepartmentId, currentDateFormat, attendanceDate]
   );
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -113,6 +141,16 @@ function AttendanceContent() {
   const [attendanceRows, setAttendanceRows] = useState<AttendanceRow[]>([]);
   const [allAttendanceRows, setAllAttendanceRows] = useState<AttendanceRow[]>([]);
   const seenEventKeysRef = useRef<Set<string>>(new Set());
+
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (prefLoading) return;
+    if (initialized) return;
+    setAttendanceDate(getTodayInFormat(dateFormat));
+    setCurrentDateFormat(dateFormat);
+    setInitialized(true);
+  }, [dateFormat, prefLoading, initialized]);
 
   const applyEventToRows = (prevRows: AttendanceRow[], payload: any) => {
     if (!payload) return { rows: prevRows, added: false };
@@ -201,7 +239,7 @@ function AttendanceContent() {
     setShowAll(false);
     setAllAttendanceRows([]);
     setCurrentPage(1);
-  }, [selectedBranchId, selectedDepartmentId]);
+  }, [selectedBranchId, selectedDepartmentId, attendanceDate]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -220,7 +258,8 @@ function AttendanceContent() {
         const params = new URLSearchParams();
         if (selectedBranchId) params.append('branch_id', String(selectedBranchId));
         if (selectedDepartmentId) params.append('department_id', String(selectedDepartmentId));
-        params.append('date_format', dateFormat);
+        params.append('date_format', currentDateFormat);
+        params.append('attendance_date', attendanceDate);
         params.append('page', String(currentPage));
 
         const queryString = params.toString();
@@ -246,7 +285,7 @@ function AttendanceContent() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, dateFormat, selectedBranchId, selectedDepartmentId, currentPage, showAll]);
+  }, [isAuthenticated, currentDateFormat, selectedBranchId, selectedDepartmentId, currentPage, showAll, attendanceDate]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -295,7 +334,7 @@ function AttendanceContent() {
     return () => {
       if (es) es.close();
     };
-  }, [isAuthenticated, dateFormat, showAll]);
+  }, [isAuthenticated, currentDateFormat, showAll]);
 
   const handleShowAll = async () => {
     try {
@@ -303,7 +342,8 @@ function AttendanceContent() {
       const params = new URLSearchParams();
       if (selectedBranchId) params.append('branch_id', String(selectedBranchId));
       if (selectedDepartmentId) params.append('department_id', String(selectedDepartmentId));
-      params.append('date_format', dateFormat);
+      params.append('date_format', currentDateFormat);
+      params.append('attendance_date', attendanceDate);
 
       const baseQuery = params.toString();
       let page = 1;
@@ -384,13 +424,27 @@ function AttendanceContent() {
               <div className="flex items-start gap-3">
                 <div>
                   <h1 className="text-3xl font-bold tracking-tight text-foreground">Daily Attendance Roll</h1>
+
+                    <span>Complete attendance records for {attendanceDate}</span>
                   <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                    <span>Complete attendance records for {data?.attendance_date}</span>
                     <AttendanceReportTabs />
                   </div>
                 </div>
               </div>
             </div>
+
+            {initialized && (
+              <AttendanceDateFilter
+                mode="single"
+                initialDateFormat={currentDateFormat}
+                initialDate={attendanceDate}
+                applyLabel="Apply Date"
+                onApply={({ startDate: nextDate, dateFormat: nextFormat }) => {
+                  setAttendanceDate(nextDate);
+                  setCurrentDateFormat(nextFormat);
+                }}
+              />
+            )}
 
           </div>
 
@@ -398,14 +452,63 @@ function AttendanceContent() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>Attendance Records</CardTitle>
-                <CardDescription>All staff attendance for {data?.attendance_date}</CardDescription>
+                <CardDescription>All staff attendance for {attendanceDate}</CardDescription>
               </div>
-              <Button 
-                onClick={handleShowAll}
-                disabled={showAllLoading || showAll}
-                variant={showAll ? "secondary" : "outline"}
-                className="rounded-2xl gap-2"
-              >
+              <div className="flex items-center gap-2">
+                <DateFormatBadge format={currentDateFormat} />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const exportRows = showAll ? allAttendanceRows : attendanceRows;
+                    if (!exportRows.length) return;
+                    const csv = buildCsv([
+                      ['S.N.', 'Employee', 'Status', 'Check In', 'Check Out', 'Break Out', 'Break In', 'Hours Worked'],
+                      ...exportRows.map((row, idx) => [
+                        idx + 1,
+                        row.employee?.name || 'Unknown',
+                        row.present ? 'Present' : 'Absent',
+                        formatTime(row.check_in),
+                        formatTime(row.check_out),
+                        getBreakSessions(row).map(s => formatTime(s.break_out)).join(', ') || '-',
+                        getBreakSessions(row).map(s => formatTime(s.break_in)).join(', ') || '-',
+                        ((row.worked_minutes || 0) / 60).toFixed(2),
+                      ]),
+                    ]);
+                    downloadCsv(`daily-attendance-${attendanceDate}.csv`, csv);
+                  }}
+                  disabled={!(showAll ? allAttendanceRows.length : attendanceRows.length)}
+                  className="rounded-2xl"
+                >
+                  Export CSV
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const exportRows = showAll ? allAttendanceRows : attendanceRows;
+                    if (!exportRows.length) return;
+                    const presentCount = exportRows.filter(r => r.present).length;
+                    const absentCount = exportRows.length - presentCount;
+                    const totalWorked = exportRows.reduce((s, r) => s + (r.worked_minutes || 0), 0) / 60;
+                    buildDailyAttendancePdf(
+                      exportRows,
+                      attendanceDate,
+                      `daily-attendance-${attendanceDate}.pdf`,
+                      { present: presentCount, absent: absentCount, workedHours: totalWorked }
+                    );
+                  }}
+                  disabled={!(showAll ? allAttendanceRows.length : attendanceRows.length)}
+                  className="rounded-2xl"
+                >
+                  Export PDF
+                </Button>
+                <Button 
+                  onClick={handleShowAll}
+                  disabled={showAllLoading || showAll}
+                  variant={showAll ? "secondary" : "outline"}
+                  className="rounded-2xl gap-2"
+                >
                 {showAllLoading ? (
                   <>
                     <Loader className="h-4 w-4 animate-spin" />
@@ -417,6 +520,7 @@ function AttendanceContent() {
                   'Show all'
                 )}
               </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -426,7 +530,7 @@ function AttendanceContent() {
                       <TableRow>
                         <TableHead>S.N.</TableHead>
                         <TableHead>Employee Name</TableHead>
-                        <TableHead>Department</TableHead>
+                        {/* <TableHead>Department</TableHead> */}
                         <TableHead>Status</TableHead>
                         <TableHead>Check In</TableHead>
                         <TableHead>Check Out</TableHead>
@@ -459,7 +563,7 @@ function AttendanceContent() {
                               {row.employee?.name || 'Unknown'}
                             </Button>
                           </TableCell>
-                          <TableCell>-</TableCell>
+                          {/* <TableCell>-</TableCell> */}
                           <TableCell>
                             <span
                               className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${

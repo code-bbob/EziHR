@@ -28,13 +28,21 @@ class EnterpriseHierarchySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Enterprise
-        fields = ['id', 'name', 'address', 'contact_email', 'contact_phone', 'licensed', 'licensed_until', 'max_alowed_employees', 'branches', 'departments']
+        fields = ['id', 'name', 'address', 'contact_email', 'contact_phone', 'licensed', 'licensed_until', 'max_alowed_employees', 'date_format_preference', 'branches', 'departments']
 
 
 class EnterpriseSummarySerializer(serializers.ModelSerializer):
     class Meta:
         model = Enterprise
-        fields = ['id', 'name']
+        fields = ['id', 'name', 'date_format_preference']
+
+
+class EnterpriseDetailSerializer(serializers.ModelSerializer):
+    """Full enterprise details with editable fields"""
+    class Meta:
+        model = Enterprise
+        fields = ['id', 'name', 'address', 'contact_email', 'contact_phone', 'licensed', 'licensed_until', 'max_alowed_employees', 'date_format_preference', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
 
 class BranchSummarySerializer(serializers.ModelSerializer):

@@ -250,6 +250,12 @@ class AttendanceRowsAPIView(APIView):
         if department_id and not Department.objects.filter(id=department_id, enterprise=enterprise).exists():
             return Response({'error': 'Department not found for your enterprise'}, status=404)
 
+        date_format = request.query_params.get('date_format')
+        attendance_date = _parse_date_param(
+            request.query_params.get('attendance_date'),
+            date_format=date_format,
+        ) or timezone.localdate()
+
         paginator = self.pagination_class()
         employees = get_filtered_employees_queryset(
             branch_id=branch_id,
@@ -259,15 +265,15 @@ class AttendanceRowsAPIView(APIView):
         page_employees = paginator.paginate_queryset(employees, request, view=self)
         page_rows = build_dashboard_rows_for_employees(
             page_employees,
-            attendance_date=timezone.localdate(),
+            attendance_date=attendance_date,
         )
         serialized_rows = [_serialize_attendance_row(row) for row in page_rows]
 
         return Response({
             'attendance_rows': serialized_rows,
-            'attendance_date': str(timezone.localdate()),
-            'attendance_date_ad': _format_ad_bs(timezone.localdate())[0],
-            'attendance_date_bs': _format_ad_bs(timezone.localdate())[1],
+            'attendance_date': str(attendance_date),
+            'attendance_date_ad': _format_ad_bs(attendance_date)[0],
+            'attendance_date_bs': _format_ad_bs(attendance_date)[1],
             'count': paginator.page.paginator.count,
             'pagination': {
                 'next': paginator.get_next_link(),
@@ -299,16 +305,22 @@ class DashboardStatsAPIView(APIView):
         if department_id and not Department.objects.filter(id=department_id, enterprise=enterprise).exists():
             return Response({'error': 'Department not found for your enterprise'}, status=404)
 
+        date_format = request.query_params.get('date_format')
+        attendance_date = _parse_date_param(
+            request.query_params.get('attendance_date'),
+            date_format=date_format,
+        ) or timezone.localdate()
+
         stats = build_dashboard_stats_fast(
-            attendance_date=timezone.localdate(),
+            attendance_date=attendance_date,
             branch_id=branch_id,
             department_id=department_id,
             enterprise_id=enterprise.id,
         )
         return Response({
-            'attendance_date': str(timezone.localdate()),
-            'attendance_date_ad': _format_ad_bs(timezone.localdate())[0],
-            'attendance_date_bs': _format_ad_bs(timezone.localdate())[1],
+            'attendance_date': str(attendance_date),
+            'attendance_date_ad': _format_ad_bs(attendance_date)[0],
+            'attendance_date_bs': _format_ad_bs(attendance_date)[1],
             'stats': stats,
         })
 
@@ -560,9 +572,9 @@ class DepartmentDashboardAPIView(APIView):
 class PlainTextParser(BaseParser):
     """A very permissive parser that accepts any media type and returns
     the raw request body decoded as a string. This helps when devices send
-    `text/plain` or other non-standard content types.
+    `text/plain`, no Content-Type, or other non-standard content types.
     """
-    media_type = 'text/plain'
+    media_type = '*/*'
 
     def parse(self, stream, media_type=None, parser_context=None):
         data = stream.read()

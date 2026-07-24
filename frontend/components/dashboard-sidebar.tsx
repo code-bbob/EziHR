@@ -91,6 +91,7 @@ interface DashboardSidebarProps extends React.ComponentProps<typeof Sidebar> {
 }
 
 export function DashboardSidebar({
+  enterpriseName: _enterpriseNameProp,
   selectedBranchName = null,
   attendanceDate,
   totalEmployees = 0,

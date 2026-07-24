@@ -12,7 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { apiClient, type EnterpriseHierarchyItem } from '@/lib/api-client';
 // import { getDateFormatPreference } from '@/hooks/use-date-format';
 import { AttendanceDateFilter } from '@/components/AttendanceDateFilter';
-import { buildCsv, downloadCsv, triggerPrint } from '@/lib/report-export';
+import { buildCsv, downloadCsv } from '@/lib/report-export';
+import { buildStaffAttendancePdf } from '@/lib/pdf-export';
 
 interface EmployeeDetail {
   id: number;
@@ -267,6 +268,21 @@ export default function StaffDetailPage() {
     ]);
 
     downloadCsv(`staff-${staffId}-attendance-${reportStartDate}-to-${reportEndDate}.csv`, csv);
+  };
+
+  const handleExportPdf = () => {
+    if (!employeeDays.length || !employee) return;
+    buildStaffAttendancePdf(
+      employee.name,
+      employee.employee_code,
+      employee.email || '',
+      employee.department?.name || '',
+      employee.branch?.name || '',
+      employeeDays,
+      `${reportStartDate} to ${reportEndDate}`,
+      `staff-${employee.employee_code}-attendance-${reportStartDate}-to-${reportEndDate}.pdf`,
+      dateFormat
+    );
   };
 
   const handleSaveEmployee = async () => {
@@ -607,7 +623,7 @@ export default function StaffDetailPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={triggerPrint}
+                  onClick={handleExportPdf}
                   disabled={!employeeDays.length || attendanceLoading}
                 >
                   Export PDF

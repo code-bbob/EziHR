@@ -10,6 +10,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { apiClient, type DashboardData, type HierarchicalDashboardData } from '@/lib/api-client'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { useFilters } from '@/hooks/useFilters'
+import { useDateFormatPreference } from '@/hooks/use-date-format'
 
 export function AppShell({ children }: { children: React.ReactNode }) {
 	const router = useRouter()
@@ -24,6 +25,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 		clearFilters,
 		clearDepartment,
 	} = useFilters()
+	const { dateFormat, loading: datePrefLoading } = useDateFormatPreference()
 
 	const syncSelectionToUrl = useCallback(
 		(branchId: number | null, departmentId: number | null) => {
@@ -55,14 +57,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 	useEffect(() => {
 		if (!isAuthenticated) return
+		if (datePrefLoading) return
 
 		let cancelled = false
 
 		const load = async () => {
 			try {
+				console.debug('[app-shell] load-dashboard', {
+					selectedBranchId,
+					selectedDepartmentId,
+					dateFormat,
+				})
 				const [hier, attendance, employeesResp] = await Promise.all([
 					apiClient.dashboard.getHierarchical(),
-					apiClient.dashboard.getAttendance(selectedBranchId, selectedDepartmentId),
+					apiClient.dashboard.getAttendance(selectedBranchId, selectedDepartmentId, dateFormat),
 					apiClient.employees.listWithFilters?.(selectedBranchId, selectedDepartmentId) ?? apiClient.employees.list(),
 				])
 
@@ -87,7 +95,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 		return () => {
 			cancelled = true
 		}
-	}, [isAuthenticated, selectedBranchId, selectedDepartmentId])
+	}, [isAuthenticated, selectedBranchId, selectedDepartmentId, dateFormat, datePrefLoading])
 
 	const totalEmployees = attendanceData?.stats?.total_employees ?? 0
 	const presentCount = attendanceData?.stats?.present_today ?? 0

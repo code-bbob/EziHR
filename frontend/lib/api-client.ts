@@ -299,6 +299,7 @@ export interface EnterpriseHierarchyItem {
   licensed?: boolean;
   licensed_until?: string | null;
   max_alowed_employees?: number;
+  date_format_preference?: 'ad' | 'bs';
   branches: EnterpriseBranchDepartment[];
   departments: Array<{
     id: number;
@@ -393,12 +394,14 @@ class ApiClient {
 
   // Dashboard endpoints
   dashboard = {
-    getAttendance: (branchId?: number | null, departmentId?: number | null, dateFormat?: 'ad' | 'bs') => {
+    getAttendance: (branchId?: number | null, departmentId?: number | null, dateFormat?: 'ad' | 'bs', attendanceDate?: string) => {
       const params = new URLSearchParams();
       if (branchId) params.append('branch_id', branchId.toString());
       if (departmentId) params.append('department_id', departmentId.toString());
       if (dateFormat) params.append('date_format', dateFormat);
+      if (attendanceDate) params.append('attendance_date', attendanceDate);
       const queryString = params.toString();
+      console.debug('[api-client] getAttendance', { branchId, departmentId, dateFormat, queryString });
       return this.request<DashboardData>(`/attendance/api/daily/${queryString ? `?${queryString}` : ''}`);
     },
     getLateArrivals: (branchId?: number | null, departmentId?: number | null, attendanceDate?: string | null, dateFormat?: 'ad' | 'bs') => {
@@ -408,6 +411,7 @@ class ApiClient {
       if (attendanceDate) params.append('attendance_date', attendanceDate);
       if (dateFormat) params.append('date_format', dateFormat);
       const queryString = params.toString();
+      console.debug('[api-client] getLateArrivals', { branchId, departmentId, attendanceDate, dateFormat, queryString });
       return this.request<LateArrivalsData>(`/attendance/api/dashboard/late-arrivals/${queryString ? `?${queryString}` : ''}`);
     },
     getEarlyDepartures: (branchId?: number | null, departmentId?: number | null, attendanceDate?: string | null, dateFormat?: 'ad' | 'bs') => {
@@ -417,6 +421,7 @@ class ApiClient {
       if (attendanceDate) params.append('attendance_date', attendanceDate);
       if (dateFormat) params.append('date_format', dateFormat);
       const queryString = params.toString();
+      console.debug('[api-client] getEarlyDepartures', { branchId, departmentId, attendanceDate, dateFormat, queryString });
       return this.request<EarlyDeparturesData>(`/attendance/api/dashboard/early-departures/${queryString ? `?${queryString}` : ''}`);
     },
     // Monthly attendance summary endpoints (server supports month or arbitrary date ranges)
@@ -440,6 +445,7 @@ class ApiClient {
       if (options.employeeId) params.append('employee_id', options.employeeId.toString());
       if (options.dateFormat) params.append('date_format', options.dateFormat);
       const queryString = params.toString();
+      console.debug('[api-client] getMonthlySummary', { ...options, queryString });
       return this.request<any>(`/attendance/api/reports/monthly-summary/${queryString ? `?${queryString}` : ''}`);
     },
     getMonthlySummaryDetailed: (options: {
@@ -462,6 +468,7 @@ class ApiClient {
       if (options.employeeId) params.append('employee_id', options.employeeId.toString());
       if (options.dateFormat) params.append('date_format', options.dateFormat);
       const queryString = params.toString();
+      console.debug('[api-client] getMonthlySummaryDetailed', { ...options, queryString });
       return this.request<any>(`/attendance/api/reports/monthly-summary-detailed/${queryString ? `?${queryString}` : ''}`);
     },
     getEmployeeDashboard: () =>
@@ -515,6 +522,12 @@ class ApiClient {
   enterprise = {
     hierarchy: () =>
       this.request<{ enterprises: EnterpriseHierarchyItem[] }>('/enterprise/api/hierarchy/'),
+
+    updatePreference: (enterpriseId: number, data: { date_format_preference: 'ad' | 'bs' }) =>
+      this.request<any>(`/enterprise/api/enterprise/${enterpriseId}/update-preference/`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
 
     createDepartment: (data: { name: string; branch_id?: number | null; enterprise_id?: number; arrival_time?: string | null; departure_time?: string | null }) =>
       this.request<any>('/enterprise/api/departments/', {

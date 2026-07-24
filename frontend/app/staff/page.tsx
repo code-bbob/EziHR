@@ -222,15 +222,15 @@ export default function StaffPage() {
   }
 
   return (
-    <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+    <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px- lg:px-8 py-6 space-y-6">
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+          {/* <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-primary">
             <Users className="h-3.5 w-3.5" />
             Staff Directory
-          </div>
+          </div> */}
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-3xl">
               Manage staff with precision.
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-muted-foreground">

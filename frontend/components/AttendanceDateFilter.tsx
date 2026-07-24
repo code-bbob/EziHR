@@ -10,6 +10,7 @@ import { NepaliBSCalendar } from '@/components/nepali-bs-calendar';
 import { getDateFormatPreference, setDateFormatPreference, type DateFormat } from '@/hooks/use-date-format';
 import { createAdSelection, createBsSelection, getInitialCalendarSelection, parseDateString, type CalendarSelection } from '@/lib/calendar-sync';
 import { cn } from '@/lib/utils';
+import { dateMatchModifiers } from 'react-day-picker';
 
 type FilterMode = 'single' | 'range';
 
@@ -32,10 +33,11 @@ interface AttendanceDateFilterProps {
 }
 
 function selectionFromDate(dateValue: string | undefined, format: 'ad' | 'bs'): CalendarSelection {
+  console.log("ekxoti",dateValue, format);
   if (!dateValue) {
+    console.log("Idhar?")
     return getInitialCalendarSelection();
   }
-
   const parsed = parseDateString(dateValue);
   if (!parsed || !Number.isFinite(parsed.year) || !Number.isFinite(parsed.month) || !Number.isFinite(parsed.day)) {
     return getInitialCalendarSelection();
@@ -67,7 +69,6 @@ function DateField({
 }: DateFieldProps) {
   const [open, setOpen] = useState(false);
   const value = selection[dateFormat];
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
@@ -117,12 +118,27 @@ export function AttendanceDateFilter({
 }: AttendanceDateFilterProps) {
   const defaultFormat = initialDateFormat ?? getDateFormatPreference();
   const [dateFormat, setDateFormat] = useState<DateFormat>(defaultFormat);
-  const [singleSelection, setSingleSelection] = useState<CalendarSelection>(() => selectionFromDate(initialDate, 'ad'));
-  const [startSelection, setStartSelection] = useState<CalendarSelection>(() => selectionFromDate(initialStartDate, 'ad'));
-  const [endSelection, setEndSelection] = useState<CalendarSelection>(() => selectionFromDate(initialEndDate, 'ad'));
+  const [singleSelection, setSingleSelection] = useState<CalendarSelection>(() => selectionFromDate(initialDate, defaultFormat));
+  const [startSelection, setStartSelection] = useState<CalendarSelection>(() => selectionFromDate(initialStartDate, defaultFormat));
+  const [endSelection, setEndSelection] = useState<CalendarSelection>(() => selectionFromDate(initialEndDate, defaultFormat));
+
+  useEffect(() => {
+    console.debug('[attendance-date-filter] init', {
+      mode,
+      defaultFormat,
+      initialDateFormat,
+      initialDate,
+      initialStartDate,
+      initialEndDate,
+    });
+  }, [defaultFormat, initialDate, initialDateFormat, initialEndDate, initialStartDate, mode]);
+
+console.log("Yaha bata hok", initialStartDate, initialEndDate);
+console.log("Yaha bata hokiii",  startSelection, endSelection);
 
   useEffect(() => {
     if (initialDateFormat) {
+      console.debug('[attendance-date-filter] sync-format-from-props', { initialDateFormat });
       setDateFormat(initialDateFormat);
     }
   }, [initialDateFormat]);
@@ -130,6 +146,7 @@ export function AttendanceDateFilter({
   const isSingle = mode === 'single';
 
   const handleFormatChange = (nextFormat: DateFormat) => {
+    console.debug('[attendance-date-filter] format-change', { from: dateFormat, to: nextFormat });
     setDateFormat(nextFormat);
     setDateFormatPreference(nextFormat);
   };
@@ -145,6 +162,7 @@ export function AttendanceDateFilter({
   const handleApply = () => {
     if (isSingle) {
       const value = currentValue(singleSelection, dateFormat);
+      console.debug('[attendance-date-filter] apply-single', { dateFormat, value });
       onApply({
         dateFormat,
         startDate: value,
@@ -153,12 +171,18 @@ export function AttendanceDateFilter({
       return;
     }
 
+    console.debug('[attendance-date-filter] apply-range', {
+      dateFormat,
+      startDate: currentValue(startSelection, dateFormat),
+      endDate: currentValue(endSelection, dateFormat),
+    });
     onApply({
       dateFormat,
       startDate: currentValue(startSelection, dateFormat),
       endDate: currentValue(endSelection, dateFormat),
     });
   };
+  console.log("ARKO HAIIII", startSelection, endSelection);
 
   return (
     <Card className="w-full rounded-2xl border-border/60 shadow-sm">
@@ -168,7 +192,7 @@ export function AttendanceDateFilter({
             {!isSingle && (
               <>
                 <div className="flex flex-col gap-2">
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Start Date</span>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Start Datess</span>
                   <DateField
                     label="Start Date"
                     placeholder="Select start"
