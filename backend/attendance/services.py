@@ -88,8 +88,6 @@ def parse_device_timestamp(value: object | None) -> datetime:
 def register_biometric_device(
     serial_number: object | None,
     *,
-    enterprise=None,
-    branch=None,
     name: str | None = None,
     device_model: str | None = None,
     last_seen_at: datetime | None = None,
@@ -101,22 +99,19 @@ def register_biometric_device(
     if not normalized_serial or normalized_serial.lower() == 'unknown':
         return None
 
-    defaults = {}
-    if enterprise is not None:
-        defaults['enterprise'] = enterprise
-    if branch is not None:
-        defaults['branch'] = branch
+    non_enterprise_defaults = {}
     if name is not None:
-        defaults['name'] = name
+        non_enterprise_defaults['name'] = name
     if device_model is not None:
-        defaults['device_model'] = device_model
+        non_enterprise_defaults['device_model'] = device_model
     if last_seen_at is not None:
-        defaults['last_seen_at'] = last_seen_at
+        non_enterprise_defaults['last_seen_at'] = last_seen_at
 
-    device, _ = BiometricDevice.objects.update_or_create(
+    device, created = BiometricDevice.objects.update_or_create(
         serial_number=normalized_serial,
-        defaults=defaults,
+        defaults=non_enterprise_defaults,
     )
+
     return device
 
 

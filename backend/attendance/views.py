@@ -761,14 +761,8 @@ class IClockCDataView(APIView):
             if sn:
                 device = register_biometric_device(
                     sn,
-                    enterprise=getattr(employee, 'enterprise', None),
-                    branch=getattr(employee, 'branch', None),
                     last_seen_at=event_time,
                 )
-                if device is not None and device.enterprise_id is None and employee.enterprise_id is not None:
-                    device.enterprise = employee.enterprise
-                    device.branch = employee.branch
-                    device.save(update_fields=['enterprise', 'branch'])
 
 
             summary, event = record_device_event(
