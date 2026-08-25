@@ -12,6 +12,7 @@ import { buildCsv, downloadCsv } from '@/lib/report-export';
 import { buildDailyAttendancePdf } from '@/lib/pdf-export';
 import { AttendanceDateFilter } from '@/components/AttendanceDateFilter';
 import { DateFormatBadge } from '@/components/DateDisplay';
+import { ManualAttendanceModal } from '@/components/ManualAttendanceModal';
 
 // shadcn UI Components
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -143,6 +144,8 @@ function AttendanceContent() {
   const seenEventKeysRef = useRef<Set<string>>(new Set());
 
   const [initialized, setInitialized] = useState(false);
+  const [manualModalOpen, setManualModalOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (prefLoading) return;
@@ -285,7 +288,7 @@ function AttendanceContent() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, currentDateFormat, selectedBranchId, selectedDepartmentId, currentPage, showAll, attendanceDate]);
+  }, [isAuthenticated, currentDateFormat, selectedBranchId, selectedDepartmentId, currentPage, showAll, attendanceDate, refreshKey]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -456,6 +459,14 @@ function AttendanceContent() {
               </div>
               <div className="flex items-center gap-2">
                 <DateFormatBadge format={currentDateFormat} />
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setManualModalOpen(true)}
+                  className="rounded-2xl"
+                >
+                  Mark Attendance
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
@@ -659,6 +670,13 @@ function AttendanceContent() {
           </Card>
 
         </div>
+
+        <ManualAttendanceModal
+          open={manualModalOpen}
+          onOpenChange={setManualModalOpen}
+          attendanceDate={attendanceDate}
+          onSuccess={() => setRefreshKey((k) => k + 1)}
+        />
       </div>
   );
 }

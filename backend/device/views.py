@@ -19,12 +19,12 @@ from rest_framework.views import APIView
 from enterprise.permissions import IsAdminRole
 
 from attendance.services import (
-    infer_next_event_code,
     parse_device_timestamp,
     parse_event_code,
     record_device_event,
     register_biometric_device,
     resolve_employee,
+    resolve_normalized_event_code,
 )
 from enterprise.models import Employee
 
@@ -190,8 +190,7 @@ def adms_cdata(request):
         if employee is None:
             continue
 
-        if event_code is None:
-            event_code = infer_next_event_code(employee, event_time)
+        event_code = resolve_normalized_event_code(employee, event_time, event_code)
 
         if sn:
             device = register_biometric_device(

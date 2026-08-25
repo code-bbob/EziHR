@@ -481,6 +481,20 @@ class ApiClient {
       this.request<DepartmentDashboardData>(`/attendance/api/dashboard/department/${departmentId}/`),
   };
 
+  // Manual attendance
+  attendance = {
+    manualMark: (data: {
+      employee_id: number;
+      attendance_date: string;
+      event_type: number;
+      event_time?: string;
+    }) =>
+      this.request<any>('/attendance/api/attendance/manual-mark/', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  };
+
   // Device endpoints
   device = {
     heartbeat: () =>

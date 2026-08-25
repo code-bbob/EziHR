@@ -23,12 +23,12 @@ from .services import (
     build_dashboard_rows_for_employees,
     build_dashboard_stats_fast,
     get_filtered_employees_queryset,
-    infer_next_event_code,
     parse_device_timestamp,
     parse_event_code,
     register_biometric_device,
     record_device_event,
     resolve_employee,
+    resolve_normalized_event_code,
     get_late_arrivals,
     get_early_departures,
 )
@@ -569,6 +569,99 @@ class DepartmentDashboardAPIView(APIView):
         return Response(response_data)
 
 
+class ManualAttendanceAPIView(APIView):
+    """Admin endpoint to manually mark attendance for an employee.
+
+    POST body:
+        employee_id (int, required)
+        attendance_date (str, required) – YYYY-MM-DD
+        event_type (int, required) – 0=Check-In, 1=Check-Out, 2=Break-Out, 3=Break-In, 4=OT-In, 5=OT-Out
+        event_time (str, optional) – HH:MM or HH:MM:SS; defaults to current time
+    """
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    VALID_EVENT_TYPES = {0, 1, 2, 3, 4, 5}
+
+    def post(self, request: HttpRequest):
+        enterprise = _resolve_user_enterprise(request.user)
+        if enterprise is None:
+            return Response({'error': 'No enterprise is mapped to this user'}, status=403)
+
+        employee_id = _parse_optional_int(request.data.get('employee_id'))
+        if employee_id is None:
+            return Response({'error': 'employee_id is required'}, status=400)
+
+        attendance_date_str = request.data.get('attendance_date')
+        if not attendance_date_str:
+            return Response({'error': 'attendance_date is required'}, status=400)
+
+        event_type = _parse_optional_int(request.data.get('event_type'))
+        if event_type is None or event_type not in self.VALID_EVENT_TYPES:
+            return Response({'error': 'event_type must be one of 0,1,2,3,4,5'}, status=400)
+
+        try:
+            employee = Employee.objects.get(id=employee_id, enterprise=enterprise)
+        except Employee.DoesNotExist:
+            return Response({'error': 'Employee not found for your enterprise'}, status=404)
+
+        # Parse attendance_date (AD only for now)
+        attendance_date = _parse_date_param(attendance_date_str)
+        if attendance_date is None:
+            return Response({'error': 'Invalid attendance_date format (use YYYY-MM-DD)'}, status=400)
+
+        # Parse optional event_time
+        event_time_str = request.data.get('event_time')
+        if event_time_str:
+            from datetime import time as _time, datetime as _dt
+            for fmt in ('%H:%M', '%H:%M:%S'):
+                try:
+                    t = _time.fromisoformat(event_time_str.strip())
+                    event_time = _dt.combine(attendance_date, t)
+                    break
+                except (ValueError, TypeError):
+                    continue
+            else:
+                return Response({'error': 'Invalid event_time format (use HH:MM or HH:MM:SS)'}, status=400)
+            if timezone.is_naive(event_time):
+                event_time = timezone.make_aware(event_time, timezone.get_current_timezone())
+        else:
+            event_time = timezone.now()
+            event_time = event_time.replace(
+                year=attendance_date.year,
+                month=attendance_date.month,
+                day=attendance_date.day,
+            )
+
+        summary, event = record_device_event(
+            employee=employee,
+            event_type=event_type,
+            event_time=event_time,
+            device_serial='',
+            raw_payload={'source': 'manual', 'admin_user': str(request.user.id)},
+            source='manual',
+        )
+
+        employee_data = _serialize_employee_min(employee)
+        summary_data = _serialize_summary_min(summary)
+        return Response({
+            'success': True,
+            'event': {
+                'id': event.id,
+                'event_type': event.event_type,
+                'event_time': event.event_time.isoformat(),
+                'source': event.source,
+            },
+            'attendance_row': {
+                'employee': employee_data,
+                'present': bool(summary.present),
+                'check_in': _dt_iso(summary.first_check_in),
+                'check_out': _dt_iso(summary.last_check_out),
+                'worked_minutes': int(summary.worked_minutes or 0),
+                'summary': summary_data,
+            },
+        }, status=201)
+
+
 class PlainTextParser(BaseParser):
     """A very permissive parser that accepts any media type and returns
     the raw request body decoded as a string. This helps when devices send
@@ -755,8 +848,7 @@ class IClockCDataView(APIView):
             if employee is None:
                 continue
 
-            if event_code is None:
-                event_code = infer_next_event_code(employee, event_time)
+            event_code = resolve_normalized_event_code(employee, event_time, event_code)
 
             if sn:
                 device = register_biometric_device(

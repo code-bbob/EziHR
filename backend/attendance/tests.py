@@ -175,7 +175,63 @@ class AttendanceAggregationTests(TestCase):
 
         event = AttendanceEvent.objects.first()
         self.assertEqual(event.employee, self.employee)
-        self.assertEqual(event.event_type, AttendanceEvent.CHECK_OUT)
+        self.assertEqual(event.event_type, AttendanceEvent.CHECK_IN)
+
+    def test_first_punch_sent_as_check_out_is_recorded_as_check_in(self):
+        today = timezone.localdate()
+        response = self.client.post(
+            '/iclock/cdata/?SN=DEVICE-01',
+            data=f'EMP001\t{today} 09:00:00\t1\t0\t\t0\t0',
+            content_type='text/plain',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        event = AttendanceEvent.objects.first()
+        self.assertEqual(event.event_type, AttendanceEvent.CHECK_IN)
+
+        summary = DailyAttendance.objects.get(employee=self.employee, attendance_date=today)
+        self.assertTrue(summary.present)
+        self.assertEqual(summary.last_check_out, None)
+
+    def test_duplicate_check_in_is_normalized_to_check_out(self):
+        today = timezone.localdate()
+        response = self.client.post(
+            '/iclock/cdata/?SN=DEVICE-01',
+            data=f'EMP001\t{today} 09:00:00\t0\t0\t\t0\t0',
+            content_type='text/plain',
+        )
+        self.assertEqual(response.status_code, 200)
+
+        response = self.client.post(
+            '/iclock/cdata/?SN=DEVICE-01',
+            data=f'EMP001\t{today} 17:00:00\t0\t0\t\t0\t0',
+            content_type='text/plain',
+        )
+        self.assertEqual(response.status_code, 200)
+
+        events = list(AttendanceEvent.objects.order_by('event_time', 'id'))
+        self.assertEqual([event.event_type for event in events], [AttendanceEvent.CHECK_IN, AttendanceEvent.CHECK_OUT])
+
+        summary = DailyAttendance.objects.get(employee=self.employee, attendance_date=today)
+        self.assertEqual(timezone.localtime(summary.first_check_in).hour, 9)
+        self.assertIsNotNone(summary.last_check_out)
+        self.assertGreater(summary.worked_minutes, 0)
+
+    def test_distinct_event_codes_are_preserved(self):
+        today = timezone.localdate()
+        self.client.post(
+            '/iclock/cdata/?SN=DEVICE-01',
+            data=f'EMP001\t{today} 09:00:00\t0\t0\t\t0\t0',
+            content_type='text/plain',
+        )
+        self.client.post(
+            '/iclock/cdata/?SN=DEVICE-01',
+            data=f'EMP001\t{today} 12:00:00\t2\t0\t\t0\t0',
+            content_type='text/plain',
+        )
+
+        events = list(AttendanceEvent.objects.order_by('event_time', 'id'))
+        self.assertEqual([event.event_type for event in events], [AttendanceEvent.CHECK_IN, AttendanceEvent.BREAK_OUT])
 
     def test_iclock_cdata_parses_raw_body_when_query_params_are_present(self):
         response = self.client.post(
@@ -190,7 +246,7 @@ class AttendanceAggregationTests(TestCase):
 
         event = AttendanceEvent.objects.first()
         self.assertEqual(event.employee, self.employee)
-        self.assertEqual(event.event_type, AttendanceEvent.CHECK_OUT)
+        self.assertEqual(event.event_type, AttendanceEvent.CHECK_IN)
 
     def test_iclock_cdata_parses_multiple_attlog_rows(self):
         raw_payload = (

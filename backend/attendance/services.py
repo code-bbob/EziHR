@@ -155,28 +155,52 @@ def resolve_employee(identifier: object | None, device_serial: object | None = N
     return None
 
 
-def infer_next_event_code(employee: Employee, event_time: datetime | None = None) -> int:
-    event_time = event_time or timezone.now()
-    attendance_date = timezone.localdate(event_time)
+_NEXT_EVENT_MAP = {
+    AttendanceEvent.CHECK_IN: AttendanceEvent.CHECK_OUT,
+    AttendanceEvent.CHECK_OUT: AttendanceEvent.CHECK_IN,
+    AttendanceEvent.BREAK_OUT: AttendanceEvent.BREAK_IN,
+    AttendanceEvent.BREAK_IN: AttendanceEvent.BREAK_OUT,
+    AttendanceEvent.OT_IN: AttendanceEvent.OT_OUT,
+    AttendanceEvent.OT_OUT: AttendanceEvent.OT_IN,
+}
 
-    last_event = (
+
+def _last_event_of_day(employee: Employee, attendance_date) -> AttendanceEvent | None:
+    return (
         AttendanceEvent.objects.filter(employee=employee, event_time__date=attendance_date)
         .order_by('event_time', 'id')
         .last()
     )
 
+
+def _next_event_code(last_event_type: int) -> int:
+    return _NEXT_EVENT_MAP.get(last_event_type, AttendanceEvent.CHECK_IN)
+
+
+def infer_next_event_code(employee: Employee, event_time: datetime | None = None) -> int:
+    event_time = event_time or timezone.now()
+
+    last_event = _last_event_of_day(employee, timezone.localdate(event_time))
+    if last_event is None:
+        return AttendanceEvent.CHECK_IN
+    return _next_event_code(last_event.event_type)
+
+
+def resolve_normalized_event_code(
+    employee: Employee,
+    event_time: datetime | None = None,
+    parsed_code: int | None = None,
+) -> int:
+    event_time = event_time or timezone.now()
+
+    last_event = _last_event_of_day(employee, timezone.localdate(event_time))
     if last_event is None:
         return AttendanceEvent.CHECK_IN
 
-    next_event_map = {
-        AttendanceEvent.CHECK_IN: AttendanceEvent.CHECK_OUT,
-        AttendanceEvent.CHECK_OUT: AttendanceEvent.CHECK_IN,
-        AttendanceEvent.BREAK_OUT: AttendanceEvent.BREAK_IN,
-        AttendanceEvent.BREAK_IN: AttendanceEvent.BREAK_OUT,
-        AttendanceEvent.OT_IN: AttendanceEvent.OT_OUT,
-        AttendanceEvent.OT_OUT: AttendanceEvent.OT_IN,
-    }
-    return next_event_map.get(last_event.event_type, AttendanceEvent.CHECK_IN)
+    if parsed_code is None or parsed_code == last_event.event_type:
+        return _next_event_code(last_event.event_type)
+
+    return parsed_code
 
 
 def _event_field_values(events, event_type: int) -> list[datetime]:
